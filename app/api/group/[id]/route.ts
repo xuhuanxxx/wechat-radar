@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { todayStr } from '@/lib/range';
 import { db } from '@/lib/db';
 import { listMessagesForDate, getSyncState, listAllSyncedDates } from '@/lib/messages-store';
-import { wxSessions } from '@/lib/wx';
+import { loadSessionsSafe } from '@/lib/sessions';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,10 +21,10 @@ export async function GET(
   const date = url.searchParams.get('date') ?? todayStr();
   const limit = Math.min(Number(url.searchParams.get('limit') ?? 1000), 5000);
 
-  // 拉群名（从 wx sessions）
+  // 拉群名（从 wx sessions 或本地 fallback）
   let chatName = chatroomId;
   try {
-    const sessions = await wxSessions(500);
+    const sessions = await loadSessionsSafe(500);
     const found = sessions.find((s) => s.username === chatroomId);
     if (found) chatName = found.chat;
   } catch {}

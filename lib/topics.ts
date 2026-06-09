@@ -17,7 +17,7 @@ const TOPICS_PER_CHUNK = 12;
 
 interface SourceMsg {
   chatroom_id: string;
-  local_id: number;
+  local_id: number | string;
   sender: string;
   content: string;
   time: string;
@@ -484,7 +484,7 @@ export interface TopicDetail extends TopicListItem {
   messages: Array<{
     chatroom_id: string;
     chat_name: string;
-    local_id: number;
+    local_id: number | string;
     sender: string;
     content: string;
     time: string;
@@ -512,7 +512,7 @@ export async function getTopicDetail(id: number): Promise<TopicDetail | null> {
     )
     .all(id) as Array<{
     chatroom_id: string;
-    local_id: number;
+    local_id: number | string;
     sender: string;
     content: string;
     time: string;

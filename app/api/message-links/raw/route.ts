@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { wxSessions } from '@/lib/wx';
+import { loadSessionsSafe } from '@/lib/sessions';
 import { todayStr } from '@/lib/range';
 
 export const dynamic = 'force-dynamic';
 
 type RawLinkRow = {
   chatroom_id: string;
-  local_id: number;
+  local_id: number | string;
   sender: string;
   time: string;
   url: string;
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
 async function groupNames() {
   const names = new Map<string, string>();
   try {
-    const sessions = await wxSessions(500);
+    const sessions = await loadSessionsSafe(500);
     for (const s of sessions) names.set(s.username, s.chat);
   } catch {}
   return names;

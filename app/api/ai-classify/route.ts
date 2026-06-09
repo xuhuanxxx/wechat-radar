@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { wxSessions } from '@/lib/wx';
+import { loadSessionsSafe } from '@/lib/sessions';
 import { listGroups, listAllTags, tagGroup } from '@/lib/groups';
 
 export const dynamic = 'force-dynamic';
@@ -185,7 +185,7 @@ const ApplySchema = z.object({
 });
 
 export async function GET() {
-  const sessions = await wxSessions(500);
+  const sessions = await loadSessionsSafe(500);
   const groupSessions = sessions.filter((s) => s.is_group);
   const groups = listGroups();
   const tags = listAllTags();

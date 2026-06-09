@@ -59,7 +59,7 @@ type LinkKind = 'article' | 'tool';
 
 interface MessageLinkRow {
   chatroom_id: string;
-  local_id: number;
+  local_id: number | string;
   sender: string;
   content: string;
   time: string;
@@ -88,7 +88,7 @@ export interface LinkIntelligenceItem {
     chat_name: string;
     sender: string;
     time: string;
-    local_id: number;
+    local_id: number | string;
     snippet: string;
     source: string;
   }>;

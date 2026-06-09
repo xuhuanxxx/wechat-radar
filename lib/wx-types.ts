@@ -38,7 +38,7 @@ export interface WxStats {
 }
 
 export interface WxMessage {
-  local_id: number;
+  local_id: number | string;
   sender: string;
   content: string;
   time: string;

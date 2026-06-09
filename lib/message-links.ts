@@ -209,7 +209,7 @@ export function upsertLinksForMessage(message: LinkInput): number {
 
 export function upsertResolvedLinkForMessage(input: {
   chatroom_id: string;
-  local_id: number;
+  local_id: number | string;
   url: string;
   title?: string | null;
   description?: string | null;

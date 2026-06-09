@@ -28,6 +28,7 @@ export default function Page() {
   const [rescanning, setRescanning] = useState(false);
   const [rescanInfo, setRescanInfo] = useState<string | undefined>(undefined);
   const [setupChecked, setSetupChecked] = useState(false);
+  const [source, setSource] = useState<'wechat' | 'lark' | 'demo'>('wechat');
 
   useEffect(() => {
     let cancelled = false;
@@ -38,6 +39,9 @@ export default function Page() {
         if (!cancelled && j.ok && !j.configured) {
           window.location.href = '/setup';
           return;
+        }
+        if (!cancelled && j.ok) {
+          setSource(j.config?.source ?? 'wechat');
         }
       } catch {}
       if (!cancelled) setSetupChecked(true);
@@ -60,6 +64,36 @@ export default function Page() {
     let cancelled = false;
     (async () => {
       try {
+        // Auto-sync for lark on first load
+        if (source === 'lark' && !rescanning) {
+          setRescanning(true);
+          setRescanInfo('飞书同步启动…');
+          try {
+            const r = await fetch('/api/lark/sync', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ days_back: defaultSyncDaysForRange(range) }),
+            });
+            const j = await r.json();
+            if (!cancelled) {
+              if (r.ok && j.ok) {
+                const totalInserted = Object.values(j.synced as Record<string, { inserted: number }>).reduce(
+                  (sum, s) => sum + (s.inserted ?? 0),
+                  0,
+                );
+                const totalGroups = Object.keys(j.synced).length;
+                setRescanInfo(`飞书同步完成 · ${totalGroups} 个群 · ${totalInserted} 条消息已入库`);
+              } else {
+                setRescanInfo('飞书同步失败：' + (j.error ?? 'unknown'));
+              }
+            }
+          } catch (e) {
+            if (!cancelled) setRescanInfo('飞书同步失败：' + (e instanceof Error ? e.message : 'unknown'));
+          } finally {
+            if (!cancelled) setRescanning(false);
+          }
+        }
+
         const j = await fetchStats(range, date);
         if (!cancelled) setStats(j);
       } catch (e) {
@@ -69,10 +103,66 @@ export default function Page() {
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, date, setupChecked]);
 
   const runRescan = useCallback(
     async (full: boolean) => {
+      if (source === 'lark') {
+        setRescanning(true);
+        setRescanInfo('飞书同步启动…');
+        try {
+          const r = await fetch('/api/lark/sync', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              days_back: full ? 365 : defaultSyncDaysForRange(range),
+              stream: true,
+            }),
+          });
+          if (!r.ok || !r.body) {
+            const j = await r.json().catch(() => ({}));
+            setRescanInfo('飞书同步失败：' + (j.error ?? 'unknown'));
+            return;
+          }
+          const reader = r.body.getReader();
+          const dec = new TextDecoder();
+          let buf = '';
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buf += dec.decode(value, { stream: true });
+            let nl;
+            while ((nl = buf.indexOf('\n\n')) !== -1) {
+              const chunk = buf.slice(0, nl).trim();
+              buf = buf.slice(nl + 2);
+              if (!chunk.startsWith('data:')) continue;
+              try {
+                const evt = JSON.parse(chunk.slice(5).trim());
+                if (evt.type === 'progress') {
+                  setRescanInfo(`${evt.chatId} · ${evt.phase} · ${evt.count}`);
+                } else if (evt.type === 'finished') {
+                  const totalInserted = Object.values(evt.synced as Record<string, { inserted: number }>).reduce(
+                    (sum, s) => sum + (s.inserted ?? 0),
+                    0,
+                  );
+                  const totalGroups = Object.keys(evt.synced).length;
+                  setRescanInfo(`飞书同步完成 · ${totalGroups} 个群 · ${totalInserted} 条消息已入库`);
+                } else if (evt.type === 'error') {
+                  setRescanInfo('飞书同步失败：' + (evt.error ?? 'unknown'));
+                }
+              } catch {}
+            }
+          }
+        } catch (e) {
+          setRescanInfo('飞书同步失败：' + (e instanceof Error ? e.message : 'unknown'));
+        } finally {
+          setRescanning(false);
+          reload();
+        }
+        return;
+      }
+
       setRescanning(true);
       setRescanInfo(full ? '全量同步启动…（365 天，预计 8-15 分钟）' : '启动重扫…');
       try {
@@ -128,7 +218,7 @@ export default function Page() {
         reload();
       }
     },
-    [range, date, reload],
+    [range, date, reload, source],
   );
 
   if (!setupChecked) {
@@ -179,6 +269,23 @@ export default function Page() {
       </main>
     </div>
   );
+}
+
+function defaultSyncDaysForRange(range: RangeKey): number {
+  switch (range) {
+    case 'day':
+      return 1;
+    case 'week':
+      return 7;
+    case 'month':
+      return 30;
+    case 'quarter':
+      return 90;
+    case 'year':
+      return 365;
+    default:
+      return 7;
+  }
 }
 
 function localToday(): string {

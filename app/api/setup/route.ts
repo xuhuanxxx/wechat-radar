@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { DATA_DIR, configStatus, writeConfig } from '@/lib/config';
+import { DATA_DIR, configStatus, writeConfig, type DataSource, type LarkChatFilter } from '@/lib/config';
 import { seedDemoData } from '@/lib/demo-data';
 import { wxAvailable, wxDaemonStatus } from '@/lib/wx';
+import { larkAvailable, larkDoctor } from '@/lib/lark';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,10 +12,27 @@ const SetupSchema = z.object({
   privacyConfirmed: z.boolean(),
   demoMode: z.boolean().default(false),
   defaultSyncDays: z.number().int().min(1).max(365).default(7),
+  source: z.enum(['wechat', 'lark', 'demo']).default('wechat'),
+  larkChatFilter: z
+    .object({
+      mode: z.enum(['all', 'allowlist', 'blocklist']),
+      allowlist: z.array(z.string()).default([]),
+      blocklist: z.array(z.string()).default([]),
+    })
+    .optional(),
+  port: z.number().int().min(1024).max(65535).optional(),
+  larkCliPath: z.string().optional(),
+  openApiKey: z.string().optional(),
+  autoSyncInterval: z.number().int().min(0).max(1440).optional(),
 });
 
 export async function GET() {
-  const [wxInstalled, daemon] = await Promise.all([wxAvailable(), wxDaemonStatus()]);
+  const [wxInstalled, daemon, larkInstalled, larkDoc] = await Promise.all([
+    wxAvailable(),
+    wxDaemonStatus(),
+    larkAvailable(),
+    larkDoctor(),
+  ]);
   return NextResponse.json({
     ok: true,
     ...configStatus(),
@@ -23,6 +41,9 @@ export async function GET() {
       wxInstalled,
       wxDaemonRunning: daemon.running,
       wxDaemonPid: daemon.pid ?? null,
+      larkInstalled,
+      larkAuthenticated: larkDoc.authenticated,
+      larkError: larkDoc.error ?? null,
     },
   });
 }
@@ -34,16 +55,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: parsed.error.message }, { status: 400 });
   }
   const names = parsed.data.myNicknames.map((name) => name.trim()).filter(Boolean);
-  if (!parsed.data.demoMode && names.length === 0) {
-    return NextResponse.json({ ok: false, error: '请至少填写一个自己的微信名或群昵称' }, { status: 400 });
+  const effectiveSource: DataSource = parsed.data.demoMode
+    ? 'demo'
+    : parsed.data.source ?? 'wechat';
+
+  if (effectiveSource !== 'demo' && names.length === 0) {
+    return NextResponse.json(
+      { ok: false, error: '请至少填写一个自己的昵称（用于 @ 检测）' },
+      { status: 400 },
+    );
   }
-  const config = writeConfig({
+
+  const patch: Parameters<typeof writeConfig>[0] = {
     myNicknames: names,
     privacyConfirmed: parsed.data.privacyConfirmed,
     demoMode: parsed.data.demoMode,
     defaultSyncDays: parsed.data.defaultSyncDays,
+    source: effectiveSource,
     setupCompleted: true,
-  });
+  };
+  if (parsed.data.larkChatFilter) {
+    patch.larkChatFilter = parsed.data.larkChatFilter as LarkChatFilter;
+  }
+  if (parsed.data.port !== undefined) patch.port = parsed.data.port;
+  if (parsed.data.larkCliPath !== undefined) patch.larkCliPath = parsed.data.larkCliPath;
+  if (parsed.data.openApiKey !== undefined) patch.openApiKey = parsed.data.openApiKey;
+  if (parsed.data.autoSyncInterval !== undefined) patch.autoSyncInterval = parsed.data.autoSyncInterval;
+  const config = writeConfig(patch);
   const demo = parsed.data.demoMode ? seedDemoData() : null;
   return NextResponse.json({ ok: true, configured: true, config, demo });
 }

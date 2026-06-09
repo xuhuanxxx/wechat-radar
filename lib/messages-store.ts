@@ -5,6 +5,9 @@ import type { WxMessage } from './wx-types';
 export interface MessageRow extends WxMessage {
   chatroom_id: string;
   date: string;
+  sender_name?: string;
+  source?: string;
+  raw?: string;
 }
 
 const SYSTEM_TYPES = new Set(['系统', 'system']);
@@ -26,8 +29,8 @@ export function bulkInsertMessages(chatroomId: string, messages: WxMessage[]): n
   if (messages.length === 0) return 0;
   const stmt = db().prepare(`
     INSERT OR IGNORE INTO messages
-      (chatroom_id, local_id, sender, content, time, timestamp, type, date)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (chatroom_id, local_id, sender, sender_name, content, time, timestamp, type, date, source, raw)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   let inserted = 0;
   const tx = db().transaction((msgs: WxMessage[]) => {
@@ -35,13 +38,16 @@ export function bulkInsertMessages(chatroomId: string, messages: WxMessage[]): n
       if (SYSTEM_TYPES.has(m.type) && REVOKE_RE.test(m.content)) continue;
       const r = stmt.run(
         chatroomId,
-        m.local_id,
+        String(m.local_id),
         m.sender ?? '',
+        (m as MessageRow).sender_name ?? null,
         m.content ?? '',
         m.time ?? '',
         m.timestamp ?? 0,
         m.type ?? '',
         dateOfMessage(m),
+        (m as MessageRow).source ?? 'wechat',
+        (m as MessageRow).raw ?? null,
       );
       upsertLinksForMessage({
         chatroom_id: chatroomId,

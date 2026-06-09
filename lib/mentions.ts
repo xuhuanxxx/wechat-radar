@@ -5,7 +5,7 @@ import type { WxMessage } from './wx-types';
 
 export interface MentionRow {
   chatroom_id: string;
-  local_id: number;
+  local_id: number | string;
   sender: string;
   content: string;
   time: string;

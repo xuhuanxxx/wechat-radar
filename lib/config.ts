@@ -8,6 +8,14 @@ export const DATA_DIR =
 
 const CONFIG_PATH = join(DATA_DIR, 'config.json');
 
+export type DataSource = 'wechat' | 'lark' | 'demo';
+
+export interface LarkChatFilter {
+  mode: 'all' | 'allowlist' | 'blocklist';
+  allowlist: string[];
+  blocklist: string[];
+}
+
 export interface Config {
   myNicknames: string[];
   defaultRange: 'day' | 'week' | 'month' | 'quarter' | 'year';
@@ -16,6 +24,12 @@ export interface Config {
   setupCompleted: boolean;
   demoMode: boolean;
   defaultSyncDays: number;
+  source: DataSource;
+  larkChatFilter: LarkChatFilter;
+  port: number;
+  larkCliPath: string;
+  openApiKey: string;
+  autoSyncInterval: number; // minutes, 0 = manual only
 }
 
 function envNames(): string[] {
@@ -33,6 +47,12 @@ const DEFAULTS: Config = {
   setupCompleted: false,
   demoMode: process.env.WECHAT_RADAR_DEMO === '1',
   defaultSyncDays: 7,
+  source: process.env.WECHAT_RADAR_DEMO === '1' ? 'demo' : 'wechat',
+  larkChatFilter: { mode: 'all', allowlist: [], blocklist: [] },
+  port: 3456,
+  larkCliPath: '',
+  openApiKey: '',
+  autoSyncInterval: 0,
 };
 
 export function readConfig(): Config {
@@ -47,6 +67,8 @@ export function readConfig(): Config {
     const merged = { ...DEFAULTS, ...parsed };
     if (envNames().length > 0) merged.myNicknames = envNames();
     if (process.env.WECHAT_RADAR_DEMO === '1') merged.demoMode = true;
+    if (!merged.larkChatFilter) merged.larkChatFilter = DEFAULTS.larkChatFilter;
+    if (!merged.port || merged.port < 1024 || merged.port > 65535) merged.port = DEFAULTS.port;
     return merged;
   } catch {
     return DEFAULTS;

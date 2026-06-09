@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@tauri-apps/cli": "^2.11.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/node-cache": "^4.2.5",
