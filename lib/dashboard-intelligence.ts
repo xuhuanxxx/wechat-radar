@@ -490,7 +490,7 @@ function buildLinkHighlights(
 }
 
 function preferredLinkSource(sources: Set<string>): string {
-  if (sources.has('wechat_raw')) return 'wechat_raw';
+  if (sources.has('lark_raw')) return 'lark_raw';
   if (sources.has('public_search')) return 'public_search';
   if (sources.has('manual')) return 'manual';
   return Array.from(sources)[0] ?? 'plain_url';
@@ -619,7 +619,7 @@ function buildAnomalies(
     anomalies.push({
       kind: 'quiet_day',
       title: '今日暂无本地消息',
-      description: '可能还未同步当天消息，建议重扫或检查 wx-daemon',
+      description: '可能还未同步当天消息，建议检查 lark-cli 登录状态或手动同步',
       severity: 'low',
     });
   }
@@ -691,7 +691,7 @@ function isToolUrl(raw: string, content: string): boolean {
   try {
     const u = new URL(cleanUrl(raw));
     const host = u.hostname.replace(/^www\./, '');
-    if (/qlogo|qpic|support\.weixin|res\.wx/i.test(host)) return false;
+    if (/feishu\.cn|larksuite\.com|puml\.cn/i.test(host)) return false;
     if (isArticleUrl(raw)) return false;
     if (/github\.com|huggingface\.co|replicate\.com|vercel\.app|netlify\.app|feishu\.cn|notion\.so|notion\.site|docs\.google\.com/i.test(host)) {
       return true;

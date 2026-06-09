@@ -77,7 +77,7 @@ function migrate(d: Database.Database) {
       timestamp INTEGER NOT NULL,
       type TEXT NOT NULL,
       date TEXT NOT NULL,
-      source TEXT NOT NULL DEFAULT 'wechat',
+      source TEXT NOT NULL DEFAULT 'lark',
       raw TEXT,
       PRIMARY KEY (chatroom_id, local_id)
     );
@@ -151,7 +151,7 @@ function migrate(d: Database.Database) {
 
     CREATE TABLE IF NOT EXISTS sync_state (
       chatroom_id TEXT NOT NULL,
-      source TEXT NOT NULL DEFAULT 'wechat',
+      source TEXT NOT NULL DEFAULT 'lark',
       last_synced_at INTEGER NOT NULL,
       first_message_date TEXT,
       last_message_date TEXT,
@@ -174,7 +174,7 @@ function migrate(d: Database.Database) {
   ensureColumn(d, 'sync_state', 'last_sync_time', 'TEXT');
   ensureColumn(d, 'messages', 'sender_name', 'TEXT');
   ensureColumn(d, 'messages', 'raw', 'TEXT');
-  ensureColumn(d, 'messages', 'source', "TEXT NOT NULL DEFAULT 'wechat'");
+  ensureColumn(d, 'messages', 'source', "TEXT NOT NULL DEFAULT 'lark'");
 
   // Migrate message_links.local_id from INTEGER to TEXT if it was created as INTEGER.
   const linksInfo = d.prepare("PRAGMA table_info(message_links)").all() as Array<{ name: string; type: string; pk: number }>;
@@ -267,7 +267,7 @@ function migrate(d: Database.Database) {
     d.exec(`
       CREATE TABLE sync_state_new (
         chatroom_id TEXT NOT NULL,
-        source TEXT NOT NULL DEFAULT 'wechat',
+        source TEXT NOT NULL DEFAULT 'lark',
         last_synced_at INTEGER NOT NULL,
         first_message_date TEXT,
         last_message_date TEXT,
@@ -285,7 +285,7 @@ function migrate(d: Database.Database) {
         total_messages, last_sync_time, status, last_error, failed_chunks, empty_chunks, total_chunks
       )
       SELECT
-        chatroom_id, 'wechat', last_synced_at, first_message_date, last_message_date,
+        chatroom_id, 'lark', last_synced_at, first_message_date, last_message_date,
         total_messages, NULL, status, last_error, failed_chunks, empty_chunks, total_chunks
       FROM sync_state;
       DROP TABLE sync_state;

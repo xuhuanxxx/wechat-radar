@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { DATA_DIR, configStatus, writeConfig, type DataSource, type LarkChatFilter } from '@/lib/config';
 import { seedDemoData } from '@/lib/demo-data';
-import { wxAvailable, wxDaemonStatus } from '@/lib/wx';
 import { larkAvailable, larkDoctor } from '@/lib/lark';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +11,7 @@ const SetupSchema = z.object({
   privacyConfirmed: z.boolean(),
   demoMode: z.boolean().default(false),
   defaultSyncDays: z.number().int().min(1).max(365).default(7),
-  source: z.enum(['wechat', 'lark', 'demo']).default('wechat'),
+  source: z.enum(['lark', 'demo']).default('lark'),
   larkChatFilter: z
     .object({
       mode: z.enum(['all', 'allowlist', 'blocklist']),
@@ -27,9 +26,7 @@ const SetupSchema = z.object({
 });
 
 export async function GET() {
-  const [wxInstalled, daemon, larkInstalled, larkDoc] = await Promise.all([
-    wxAvailable(),
-    wxDaemonStatus(),
+  const [larkInstalled, larkDoc] = await Promise.all([
     larkAvailable(),
     larkDoctor(),
   ]);
@@ -38,9 +35,6 @@ export async function GET() {
     ...configStatus(),
     dataDir: DATA_DIR,
     checks: {
-      wxInstalled,
-      wxDaemonRunning: daemon.running,
-      wxDaemonPid: daemon.pid ?? null,
       larkInstalled,
       larkAuthenticated: larkDoc.authenticated,
       larkError: larkDoc.error ?? null,
@@ -55,9 +49,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: parsed.error.message }, { status: 400 });
   }
   const names = parsed.data.myNicknames.map((name) => name.trim()).filter(Boolean);
-  const effectiveSource: DataSource = parsed.data.demoMode
-    ? 'demo'
-    : parsed.data.source ?? 'wechat';
+  const effectiveSource: DataSource = parsed.data.demoMode ? 'demo' : 'lark';
 
   if (effectiveSource !== 'demo' && names.length === 0) {
     return NextResponse.json(

@@ -1,12 +1,12 @@
 #!/bin/bash
 set -e
 
-# Build WeChat Radar as a macOS .app bundle with menu bar
+# Build Lark Radar as a macOS .app bundle with menu bar
 # Usage: ./scripts/build-macos-app.sh
-# Output: dist/WeChat Radar.app
+# Output: dist/Lark Radar.app
 
-APP_NAME="WeChat Radar"
-BUNDLE_ID="com.wechat-radar.app"
+APP_NAME="Lark Radar"
+BUNDLE_ID="com.lark-radar.app"
 VERSION="0.1.0"
 
 # Detect architecture
@@ -61,7 +61,7 @@ fi
 
 # Create renamed node binary for better process naming in Activity Monitor
 echo "    Creating renamed node binary..."
-cp "$NODE_DIR/bin/node" "$NODE_DIR/bin/WeChatRadarServer"
+cp "$NODE_DIR/bin/node" "$NODE_DIR/bin/LarkRadarServer"
 
 # 3. Copy standalone output
 echo "[3/9] Copying standalone output..."
@@ -131,8 +131,8 @@ echo "    Optimization complete"
 # 7. Compile Swift menu bar app
 echo "[7/9] Compiling menu bar app..."
 if [ -f "$PROJECT_ROOT/scripts/macos-menu/main.swift" ]; then
-  swiftc -o "$MACOS_DIR/WeChatRadarMenu" "$PROJECT_ROOT/scripts/macos-menu/main.swift" -framework Cocoa 2>&1
-  if [ ! -f "$MACOS_DIR/WeChatRadarMenu" ]; then
+  swiftc -o "$MACOS_DIR/LarkRadarMenu" "$PROJECT_ROOT/scripts/macos-menu/main.swift" -framework Cocoa 2>&1
+  if [ ! -f "$MACOS_DIR/LarkRadarMenu" ]; then
     echo "WARNING: Menu bar app compilation failed, falling back to launch script"
     cp "$PROJECT_ROOT/scripts/macos-menu/main.swift" "$MACOS_DIR/"
   else
@@ -152,7 +152,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RESOURCES_DIR="$(dirname "$SCRIPT_DIR")/Resources"
 NODE_BIN="$RESOURCES_DIR/node/bin/node"
 APP_DIR="$RESOURCES_DIR/app"
-CONFIG_DIR="$HOME/.wechat-radar"
+CONFIG_DIR="$HOME/.lark-radar"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 
 mkdir -p "$CONFIG_DIR"
@@ -178,10 +178,10 @@ while lsof -i :"$PORT" -t >/dev/null 2>&1; do
   fi
 done
 
-echo "Starting WeChat Radar on port $PORT..."
+echo "Starting Lark Radar on port $PORT..."
 
 export PORT="$PORT"
-export WECHAT_RADAR_DATA_DIR="$CONFIG_DIR"
+export LARK_RADAR_DATA_DIR="$CONFIG_DIR"
 
 cd "$APP_DIR"
 "$NODE_BIN" "$APP_DIR/server.js" &
@@ -206,8 +206,8 @@ chmod +x "$MACOS_DIR/launch"
 echo "[9/9] Creating Info.plist..."
 
 # Use menu bar app as main executable if available, otherwise fallback to launch script
-if [ -f "$MACOS_DIR/WeChatRadarMenu" ]; then
-  EXECUTABLE="WeChatRadarMenu"
+if [ -f "$MACOS_DIR/LarkRadarMenu" ]; then
+  EXECUTABLE="LarkRadarMenu"
   LSUI_ELEMENT="<true/>"
 else
   EXECUTABLE="launch"
@@ -254,4 +254,4 @@ echo "Size: $(du -sh "$APP_DIR" | cut -f1)"
 echo "Executable: $EXECUTABLE"
 echo ""
 echo "To test: open \"$APP_DIR\""
-echo "To distribute: ditto -c -k --keepParent \"$APP_DIR\" \"$DIST_DIR/WeChat-Radar-macOS-$ARCH.zip\""
+echo "To distribute: ditto -c -k --keepParent \"$APP_DIR\" \"$DIST_DIR/Lark-Radar-macOS-$ARCH.zip\""

@@ -1,13 +1,11 @@
 import pLimit from 'p-limit';
 import { db } from './db';
-import { wxHistory, wxStats } from './wx';
 import {
   aggregateDailyStats,
   bulkInsertMessages,
   upsertSyncState,
 } from './messages-store';
 import { rebuildMentionIndexFromMessages } from './mentions';
-import type { WxStats } from './wx-types';
 
 export type StatsRow = {
   chatroom_id: string;
@@ -164,8 +162,8 @@ function dateList(since: string, until: string): string[] {
 }
 
 /**
- * 全量同步：每群按月分批拉 wx history → 本地存 messages → 本地聚合 daily_stats。
- * 比起逐天调 wx stats 快 30 倍。
+ * 全量同步：每群按月分批拉取历史消息 → 本地存 messages → 本地聚合 daily_stats。
+ * 注：此版本已移除 wx-cli 依赖，仅保留本地 DB 聚合逻辑供 lark 同步后使用。
  */
 export async function syncFullHistory({
   targets,
@@ -208,8 +206,30 @@ export async function syncFullHistory({
         limit(async () => {
           const state = byTarget.get(t.chatroomId)!;
           try {
-            const messages = await wxHistory(t.chatroomId, c.since, c.until, 50_000);
-            const inserted = bulkInsertMessages(t.chatroomId, messages);
+            // 本地 DB 聚合模式：从已有 messages 中聚合
+            const messages: Array<{
+              local_id: string | number;
+              sender: string;
+              content: string;
+              time: string;
+              timestamp: number;
+              type: string;
+            }> = db()
+              .prepare(
+                `SELECT local_id, sender, content, time, timestamp, type
+                 FROM messages
+                 WHERE chatroom_id = ? AND date(time) >= ? AND date(time) <= ?`,
+              )
+              .all(t.chatroomId, c.since, c.until) as any[];
+
+            const inserted = bulkInsertMessages(
+              t.chatroomId,
+              messages.map((m) => ({
+                ...m,
+                username: t.chatroomId,
+                chat: t.display,
+              })),
+            );
             state.fetched += messages.length;
             state.inserted += inserted;
             if (messages.length === 0) state.emptyChunks++;
@@ -245,7 +265,7 @@ export async function syncFullHistory({
 
   await Promise.all(tasks);
 
-  // Now aggregate daily_stats from the new messages for each target
+  // Now aggregate daily_stats from the messages for each target
   const aggLimit = pLimit(8);
   const dates = dateList(since, until);
   await Promise.all(
@@ -254,7 +274,6 @@ export async function syncFullHistory({
         const buckets = aggregateDailyStats(t.chatroomId, dates);
         for (const b of buckets) {
           if (b.total === 0) {
-            // Don't overwrite if we already have non-zero stats from a prior wx-stats run
             const existing = getCachedStats(t.chatroomId, b.date);
             if (existing && existing.total > 0) continue;
           }
@@ -306,7 +325,7 @@ export async function syncFullHistory({
 }
 
 /**
- * 兼容旧调用：单天 wx stats 模式（保留以备需要）
+ * 兼容旧调用：单天 stats 模式（已移除 wx 依赖，改为本地 DB 聚合）
  */
 export interface RescanOptions {
   targets: RescanTarget[];
@@ -333,13 +352,28 @@ export async function rescan({
       tasks.push(
         limit(async () => {
           try {
-            const res: WxStats = await wxStats(t.chatroomId, d, d);
+            const messages = db()
+              .prepare(
+                `SELECT sender, COUNT(*) as count FROM messages
+                 WHERE chatroom_id = ? AND date(time) = ?
+                 GROUP BY sender ORDER BY count DESC`,
+              )
+              .all(t.chatroomId, d) as Array<{ sender: string; count: number }>;
+
+            const byHour = db()
+              .prepare(
+                `SELECT CAST(strftime('%H', time) AS INTEGER) as hour, COUNT(*) as count
+                 FROM messages WHERE chatroom_id = ? AND date(time) = ?
+                 GROUP BY hour ORDER BY hour`,
+              )
+              .all(t.chatroomId, d) as Array<{ hour: number; count: number }>;
+
             saveStats({
               chatroom_id: t.chatroomId,
               date: d,
-              total: res.total ?? 0,
-              top_senders: res.top_senders ?? [],
-              by_hour: res.by_hour ?? [],
+              total: messages.reduce((sum, m) => sum + m.count, 0),
+              top_senders: messages.slice(0, 10).map((m) => ({ sender: m.sender, count: m.count })),
+              by_hour: byHour.map((h) => ({ hour: h.hour, count: h.count })),
             });
             ok++;
           } catch {

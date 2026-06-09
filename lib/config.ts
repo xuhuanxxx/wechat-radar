@@ -3,12 +3,12 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 export const DATA_DIR =
-  process.env.WECHAT_RADAR_DATA_DIR ||
-  join(homedir(), '.wechat-radar');
+  process.env.LARK_RADAR_DATA_DIR ||
+  join(homedir(), '.lark-radar');
 
 const CONFIG_PATH = join(DATA_DIR, 'config.json');
 
-export type DataSource = 'wechat' | 'lark' | 'demo';
+export type DataSource = 'lark' | 'demo';
 
 export interface LarkChatFilter {
   mode: 'all' | 'allowlist' | 'blocklist';
@@ -33,7 +33,7 @@ export interface Config {
 }
 
 function envNames(): string[] {
-  return (process.env.WECHAT_RADAR_MY_NAMES || '')
+  return (process.env.LARK_RADAR_MY_NAMES || '')
     .split(',')
     .map((name) => name.trim())
     .filter(Boolean);
@@ -45,9 +45,9 @@ const DEFAULTS: Config = {
   rescanConcurrency: 5,
   privacyConfirmed: false,
   setupCompleted: false,
-  demoMode: process.env.WECHAT_RADAR_DEMO === '1',
+  demoMode: process.env.LARK_RADAR_DEMO === '1',
   defaultSyncDays: 7,
-  source: process.env.WECHAT_RADAR_DEMO === '1' ? 'demo' : 'wechat',
+  source: 'lark',
   larkChatFilter: { mode: 'all', allowlist: [], blocklist: [] },
   port: 3456,
   larkCliPath: '',
@@ -66,7 +66,7 @@ export function readConfig(): Config {
     const parsed = JSON.parse(raw) as Partial<Config>;
     const merged = { ...DEFAULTS, ...parsed };
     if (envNames().length > 0) merged.myNicknames = envNames();
-    if (process.env.WECHAT_RADAR_DEMO === '1') merged.demoMode = true;
+    if (process.env.LARK_RADAR_DEMO === '1') merged.demoMode = true;
     if (!merged.larkChatFilter) merged.larkChatFilter = DEFAULTS.larkChatFilter;
     if (!merged.port || merged.port < 1024 || merged.port > 65535) merged.port = DEFAULTS.port;
     return merged;

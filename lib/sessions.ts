@@ -1,11 +1,22 @@
 import { db } from './db';
 import { readConfig } from './config';
-import { wxSessions } from './wx';
 import { larkAllChats } from './lark';
-import type { WxSession } from './wx-types';
 import { cache, CK } from './cache';
 
-export async function listLocalSessionsFallback(limit = 500): Promise<WxSession[]> {
+export interface Session {
+  chat: string;
+  chat_type: 'private' | 'group';
+  is_group: boolean;
+  last_msg_type: string;
+  last_sender: string;
+  summary: string;
+  time: string;
+  timestamp: number;
+  unread: number;
+  username: string;
+}
+
+export async function listLocalSessionsFallback(limit = 500): Promise<Session[]> {
   const rows = db()
     .prepare(
       `
@@ -58,17 +69,11 @@ export async function listLocalSessionsFallback(limit = 500): Promise<WxSession[
   }));
 }
 
-export async function loadSessionsSafe(limit = 500): Promise<WxSession[]> {
+export async function loadSessionsSafe(limit = 500): Promise<Session[]> {
   const cfg = readConfig();
-  if (cfg.demoMode || cfg.source === 'lark') return await listLocalSessionsFallback(limit);
-  const cached = cache.get(CK.sessions()) as WxSession[] | undefined;
-  try {
-    const sessions = await wxSessions(limit);
-    cache.set(CK.sessions(), sessions, 60);
-    return sessions;
-  } catch (e) {
-    if (cached?.length) return cached;
-    console.warn('wx sessions failed, falling back to local radar.db', e);
-    return listLocalSessionsFallback(limit);
+  if (cfg.demoMode || cfg.source === 'lark') {
+    return await listLocalSessionsFallback(limit);
   }
+  // Default to local DB fallback for any non-lark source
+  return listLocalSessionsFallback(limit);
 }

@@ -1,7 +1,5 @@
 import { db } from './db';
 import { readConfig } from './config';
-import { wxHistory } from './wx';
-import type { WxMessage } from './wx-types';
 
 export interface MentionRow {
   chatroom_id: string;
@@ -122,6 +120,9 @@ function ensureMentionIndexCurrent() {
   rebuildMentionIndexFromMessages();
 }
 
+/**
+ * 扫描 mentions（已移除 wx-cli 依赖，改为从本地 messages 表扫描）
+ */
 export async function scanMentions(
   chatroomId: string,
   since: string,
@@ -130,12 +131,19 @@ export async function scanMentions(
   const cfg = readConfig();
   if (!cfg.myNicknames.length) return 0;
 
-  let messages: WxMessage[] = [];
-  try {
-    messages = await wxHistory(chatroomId, since, until, 5000);
-  } catch {
-    return 0;
-  }
+  const messages = db()
+    .prepare(
+      `SELECT local_id, sender, content, time, timestamp
+       FROM messages
+       WHERE chatroom_id = ? AND date(time) >= ? AND date(time) <= ?`,
+    )
+    .all(chatroomId, since, until) as Array<{
+    local_id: number | string;
+    sender: string;
+    content: string;
+    time: string;
+    timestamp: number;
+  }>;
 
   const upsert = db().prepare(`
     INSERT OR REPLACE INTO mentions
@@ -144,7 +152,7 @@ export async function scanMentions(
   `);
 
   let inserted = 0;
-  const insert = db().transaction((items: WxMessage[]) => {
+  const insert = db().transaction((items: typeof messages) => {
     for (const m of items) {
       if (!isMention(m.content, cfg.myNicknames)) continue;
       upsert.run(

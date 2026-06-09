@@ -3,16 +3,16 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { db } from './db';
-import { wxSessions } from './wx';
+import { loadSessionsSafe } from './sessions';
 
 const MIN_MESSAGES_PER_TOPIC = 4;
 const MIN_MESSAGE_LENGTH = 20;
 const MAX_MESSAGE_LENGTH = 400;
 const MAX_MESSAGES_TO_PROCESS = 3000;
 const MAX_TOPICS_TO_SAVE = 30;
-const CODEX_CHUNK_SIZE = Number(process.env.WECHAT_RADAR_TOPIC_CHUNK_SIZE ?? 250);
-const CODEX_TIMEOUT_MS = Number(process.env.WECHAT_RADAR_CODEX_TIMEOUT_MS ?? 300_000);
-const CODEX_MODEL = process.env.WECHAT_RADAR_CODEX_MODEL;
+const CODEX_CHUNK_SIZE = Number(process.env.LARK_RADAR_TOPIC_CHUNK_SIZE ?? 250);
+const CODEX_TIMEOUT_MS = Number(process.env.LARK_RADAR_CODEX_TIMEOUT_MS ?? 300_000);
+const CODEX_MODEL = process.env.LARK_RADAR_CODEX_MODEL;
 const TOPICS_PER_CHUNK = 12;
 
 interface SourceMsg {
@@ -175,7 +175,7 @@ function parseJsonOutput<T>(raw: string): T {
 
 function runCodexJson<T>(prompt: string, timeoutMs = CODEX_TIMEOUT_MS): Promise<T> {
   return new Promise((resolve, reject) => {
-    const dir = mkdtempSync(join(tmpdir(), 'wechat-topics-'));
+    const dir = mkdtempSync(join(tmpdir(), 'lark-topics-'));
     const schemaPath = join(dir, 'schema.json');
     const outPath = join(dir, 'response.json');
     writeFileSync(schemaPath, JSON.stringify(TOPIC_RESPONSE_SCHEMA), 'utf8');
@@ -412,7 +412,7 @@ export async function buildTopicsForDate(
     return { topics: 0, messages: 0 };
   }
 
-  const sessions = await wxSessions(500).catch(() => []);
+  const sessions = await loadSessionsSafe(500).catch(() => []);
   const groupNameMap = new Map<string, string>();
   for (const s of sessions) groupNameMap.set(s.username, s.chat);
 
@@ -521,7 +521,7 @@ export async function getTopicDetail(id: number): Promise<TopicDetail | null> {
     score: number;
   }>;
 
-  const sessions = await wxSessions(500).catch(() => []);
+  const sessions = await loadSessionsSafe(500).catch(() => []);
   const nameMap = new Map<string, string>();
   for (const s of sessions) nameMap.set(s.username, s.chat);
 

@@ -1,11 +1,16 @@
 import { db } from './db';
 import { upsertLinksForMessage } from './message-links';
-import type { WxMessage } from './wx-types';
 
-export interface MessageRow extends WxMessage {
+export interface MessageRow {
   chatroom_id: string;
-  date: string;
+  local_id: number | string;
+  sender: string;
   sender_name?: string;
+  content: string;
+  time: string;
+  timestamp: number;
+  type: string;
+  date: string;
   source?: string;
   raw?: string;
 }
@@ -13,7 +18,7 @@ export interface MessageRow extends WxMessage {
 const SYSTEM_TYPES = new Set(['系统', 'system']);
 const REVOKE_RE = /撤回了一条消息|recalled a message/i;
 
-export function dateOfMessage(m: WxMessage): string {
+export function dateOfMessage(m: Pick<MessageRow, 'time' | 'timestamp'>): string {
   if (m.time && m.time.length >= 10) return m.time.slice(0, 10);
   if (m.timestamp) {
     const d = new Date(m.timestamp * 1000);
@@ -25,7 +30,7 @@ export function dateOfMessage(m: WxMessage): string {
   return 'unknown';
 }
 
-export function bulkInsertMessages(chatroomId: string, messages: WxMessage[]): number {
+export function bulkInsertMessages(chatroomId: string, messages: Array<Partial<MessageRow>>): number {
   if (messages.length === 0) return 0;
   const stmt = db().prepare(`
     INSERT OR IGNORE INTO messages
@@ -33,30 +38,30 @@ export function bulkInsertMessages(chatroomId: string, messages: WxMessage[]): n
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   let inserted = 0;
-  const tx = db().transaction((msgs: WxMessage[]) => {
+  const tx = db().transaction((msgs: typeof messages) => {
     for (const m of msgs) {
-      if (SYSTEM_TYPES.has(m.type) && REVOKE_RE.test(m.content)) continue;
+      if (SYSTEM_TYPES.has(m.type ?? '') && REVOKE_RE.test(m.content ?? '')) continue;
       const r = stmt.run(
         chatroomId,
-        String(m.local_id),
+        String(m.local_id ?? ''),
         m.sender ?? '',
-        (m as MessageRow).sender_name ?? null,
+        m.sender_name ?? null,
         m.content ?? '',
         m.time ?? '',
         m.timestamp ?? 0,
         m.type ?? '',
-        dateOfMessage(m),
-        (m as MessageRow).source ?? 'wechat',
-        (m as MessageRow).raw ?? null,
+        dateOfMessage(m as MessageRow),
+        m.source ?? 'lark',
+        m.raw ?? null,
       );
       upsertLinksForMessage({
         chatroom_id: chatroomId,
-        local_id: m.local_id,
+        local_id: m.local_id ?? '',
         sender: m.sender ?? '',
         content: m.content ?? '',
         time: m.time ?? '',
         timestamp: m.timestamp ?? 0,
-        date: dateOfMessage(m),
+        date: dateOfMessage(m as MessageRow),
       });
       if (r.changes > 0) inserted++;
     }
@@ -89,123 +94,70 @@ export function aggregateDailyStats(chatroomId: string, dates: string[]): DailyS
   const placeholders = dates.map(() => '?').join(',');
   const rows = db()
     .prepare(
-      `SELECT date, sender, timestamp, type
+      `SELECT date(time) AS date,
+              COUNT(*) AS total,
+              CAST(strftime('%H', time) AS INTEGER) AS hour,
+              sender,
+              COUNT(*) AS sender_count
        FROM messages
-       WHERE chatroom_id = ? AND date IN (${placeholders})`,
+       WHERE chatroom_id = ? AND date(time) IN (${placeholders})
+       GROUP BY date(time), hour, sender
+       ORDER BY date(time), hour, sender_count DESC`,
     )
     .all(chatroomId, ...dates) as Array<{
     date: string;
+    total: number;
+    hour: number;
     sender: string;
-    timestamp: number;
-    type: string;
+    sender_count: number;
   }>;
 
-  const byDate = new Map<string, { total: number; senders: Map<string, number>; hours: number[] }>();
-  for (const d of dates) byDate.set(d, { total: 0, senders: new Map(), hours: new Array(24).fill(0) });
-
+  const byDate = new Map<string, DailyStatsAggregate>();
   for (const r of rows) {
-    const slot = byDate.get(r.date);
-    if (!slot) continue;
-    slot.total++;
-    slot.senders.set(r.sender, (slot.senders.get(r.sender) ?? 0) + 1);
-    if (r.timestamp) {
-      const h = new Date(r.timestamp * 1000).getHours();
-      if (h >= 0 && h < 24) slot.hours[h]++;
+    if (!byDate.has(r.date)) {
+      byDate.set(r.date, { date: r.date, total: 0, by_hour: [], top_senders: [] });
+    }
+    const agg = byDate.get(r.date)!;
+    agg.total = r.total;
+    const hourEntry = agg.by_hour.find((h) => h.hour === r.hour);
+    if (hourEntry) {
+      hourEntry.count += r.sender_count;
+    } else {
+      agg.by_hour.push({ hour: r.hour, count: r.sender_count });
+    }
+    const senderEntry = agg.top_senders.find((s) => s.sender === r.sender);
+    if (senderEntry) {
+      senderEntry.count += r.sender_count;
+    } else {
+      agg.top_senders.push({ sender: r.sender, count: r.sender_count });
     }
   }
 
-  return dates.map((date) => {
-    const s = byDate.get(date)!;
-    const top = Array.from(s.senders.entries())
-      .map(([sender, count]) => ({ sender, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-    const by_hour = s.hours.map((count, hour) => ({ hour, count }));
-    return { date, total: s.total, by_hour, top_senders: top };
-  });
+  // Sort by hour and limit top senders
+  for (const agg of byDate.values()) {
+    agg.by_hour.sort((a, b) => a.hour - b.hour);
+    agg.top_senders.sort((a, b) => b.count - a.count);
+    agg.top_senders = agg.top_senders.slice(0, 10);
+  }
+
+  return dates.map((d) => byDate.get(d) || { date: d, total: 0, by_hour: [], top_senders: [] });
 }
 
 export function getSyncState(chatroomId: string) {
   return db()
-    .prepare('SELECT * FROM sync_state WHERE chatroom_id = ?')
+    .prepare(
+      'SELECT chatroom_id, message_count, first_date, last_date, meta, updated_at FROM sync_state WHERE chatroom_id = ?',
+    )
     .get(chatroomId) as
     | {
         chatroom_id: string;
-        last_synced_at: number;
-        first_message_date: string | null;
-        last_message_date: string | null;
-        total_messages: number;
-        status: string;
-        last_error: string | null;
-        failed_chunks: number;
-        empty_chunks: number;
-        total_chunks: number;
+        message_count: number;
+        first_date: string | null;
+        last_date: string | null;
+        meta: string | null;
+        updated_at: number;
       }
     | undefined;
-}
-
-export type SyncStatus = 'ok' | 'partial' | 'failed' | 'empty' | 'unknown';
-
-export function upsertSyncState(
-  chatroomId: string,
-  total: number,
-  firstDate: string | null,
-  lastDate: string | null,
-  meta: {
-    status?: SyncStatus;
-    lastError?: string | null;
-    failedChunks?: number;
-    emptyChunks?: number;
-    totalChunks?: number;
-  } = {},
-) {
-  db()
-    .prepare(
-      `INSERT INTO sync_state (
-         chatroom_id,
-         last_synced_at,
-         first_message_date,
-         last_message_date,
-         total_messages,
-         status,
-         last_error,
-         failed_chunks,
-         empty_chunks,
-         total_chunks
-       )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(chatroom_id) DO UPDATE SET
-         last_synced_at = excluded.last_synced_at,
-         first_message_date = COALESCE(excluded.first_message_date, sync_state.first_message_date),
-         last_message_date = COALESCE(excluded.last_message_date, sync_state.last_message_date),
-         total_messages = excluded.total_messages,
-         status = excluded.status,
-         last_error = excluded.last_error,
-         failed_chunks = excluded.failed_chunks,
-         empty_chunks = excluded.empty_chunks,
-         total_chunks = excluded.total_chunks`,
-    )
-    .run(
-      chatroomId,
-      Date.now(),
-      firstDate,
-      lastDate,
-      total,
-      meta.status ?? 'unknown',
-      meta.lastError ?? null,
-      meta.failedChunks ?? 0,
-      meta.emptyChunks ?? 0,
-      meta.totalChunks ?? 0,
-    );
-}
-
-export function countMessagesInRange(chatroomId: string, since: string, until: string): number {
-  const r = db()
-    .prepare(
-      'SELECT COUNT(*) AS n FROM messages WHERE chatroom_id = ? AND date >= ? AND date <= ?',
-    )
-    .get(chatroomId, since, until) as { n: number };
-  return r.n;
 }
 
 export function listAllSyncedDates(chatroomId: string): string[] {
@@ -215,4 +167,32 @@ export function listAllSyncedDates(chatroomId: string): string[] {
     )
     .all(chatroomId) as Array<{ date: string }>;
   return rows.map((r) => r.date);
+}
+
+export function upsertSyncState(
+  chatroomId: string,
+  messageCount: number,
+  firstDate: string | null,
+  lastDate: string | null,
+  meta?: Record<string, unknown>,
+) {
+  db()
+    .prepare(
+      `INSERT INTO sync_state (chatroom_id, message_count, first_date, last_date, meta, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(chatroom_id, source) DO UPDATE SET
+         message_count = excluded.message_count,
+         first_date = excluded.first_date,
+         last_date = excluded.last_date,
+         meta = excluded.meta,
+         updated_at = excluded.updated_at`,
+    )
+    .run(
+      chatroomId,
+      messageCount,
+      firstDate,
+      lastDate,
+      meta ? JSON.stringify(meta) : null,
+      Date.now(),
+    );
 }

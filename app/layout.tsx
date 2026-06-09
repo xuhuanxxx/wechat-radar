@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "WeChat Radar",
-  description: "Local-first WeChat group intelligence dashboard",
+  title: "Lark Radar",
+  description: "Local-first Lark group intelligence dashboard",
 };
 
 export default function RootLayout({

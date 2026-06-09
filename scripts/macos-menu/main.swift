@@ -14,7 +14,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         let menu = NSMenu()
         
-        let titleItem = NSMenuItem(title: "WeChat Radar", action: nil, keyEquivalent: "")
+        let titleItem = NSMenuItem(title: "Lark Radar", action: nil, keyEquivalent: "")
         titleItem.isEnabled = false
         menu.addItem(titleItem)
         menu.addItem(NSMenuItem.separator())
@@ -53,8 +53,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard !isRunning else { return }
         
         let resourcesPath = Bundle.main.resourcePath!
-        // Use WeChatRadarServer instead of node for better process naming in Activity Monitor
-        let nodePath = resourcesPath + "/node/bin/WeChatRadarServer"
+        // Use LarkRadarServer instead of node for better process naming in Activity Monitor
+        let nodePath = resourcesPath + "/node/bin/LarkRadarServer"
         let appPath = resourcesPath + "/app/server.js"
         let appDir = resourcesPath + "/app"
         
@@ -81,12 +81,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         task.arguments = [appPath]
         task.environment = [
             "PORT": "\(serverPort)",
-            "WECHAT_RADAR_DATA_DIR": NSHomeDirectory() + "/.wechat-radar",
+            "LARK_RADAR_DATA_DIR": NSHomeDirectory() + "/.lark-radar",
             "NODE_ENV": "production"
         ]
         task.currentDirectoryURL = URL(fileURLWithPath: appDir)
         
-        let logPath = NSHomeDirectory() + "/.wechat-radar/server.log"
+        let logPath = NSHomeDirectory() + "/.lark-radar/server.log"
         if FileManager.default.fileExists(atPath: logPath) {
             try? FileManager.default.removeItem(atPath: logPath)
         }

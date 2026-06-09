@@ -1,5 +1,5 @@
 {
-  "name": "wechat-radar",
+  "name": "lark-radar",
   "version": "0.1.0",
   "private": false,
   "scripts": {
@@ -36,6 +36,6 @@
     "tailwindcss": "^4",
     "typescript": "^5"
   },
-  "description": "Local-first WeChat group intelligence dashboard",
+  "description": "Local-first Lark group intelligence dashboard",
   "license": "SEE LICENSE IN LICENSE"
 }

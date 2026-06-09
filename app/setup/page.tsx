@@ -12,7 +12,7 @@ import {
   Search,
 } from 'lucide-react';
 
-type SourceType = 'wechat' | 'lark' | 'demo';
+type SourceType = 'lark' | 'demo';
 
 type LarkChatFilter = {
   mode: 'all' | 'allowlist' | 'blocklist';
@@ -37,9 +37,6 @@ type SetupStatus = {
     autoSyncInterval: number;
   };
   checks: {
-    wxInstalled: boolean;
-    wxDaemonRunning: boolean;
-    wxDaemonPid: number | null;
     larkInstalled: boolean;
     larkAuthenticated: boolean;
     larkError: string | null;
@@ -59,7 +56,7 @@ export default function SetupPage() {
   const [demoMode, setDemoMode] = useState(false);
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
   const [defaultSyncDays, setDefaultSyncDays] = useState(7);
-  const [source, setSource] = useState<SourceType>('wechat');
+  const [source, setSource] = useState<SourceType>('lark');
   const [filter, setFilter] = useState<LarkChatFilter>({
     mode: 'all',
     allowlist: [],
@@ -85,7 +82,7 @@ export default function SetupPage() {
       setDemoMode(json.config.demoMode);
       setPrivacyConfirmed(json.config.privacyConfirmed);
       setDefaultSyncDays(json.config.defaultSyncDays ?? 7);
-      setSource(json.config.source ?? (json.config.demoMode ? 'demo' : 'wechat'));
+      setSource(json.config.source ?? (json.config.demoMode ? 'demo' : 'lark'));
       setPort(json.config.port ?? 3456);
       setLarkCliPath(json.config.larkCliPath ?? '');
       setOpenApiKey(json.config.openApiKey ?? '');
@@ -118,8 +115,8 @@ export default function SetupPage() {
 
   const filteredChats = useMemo(() => {
     if (!larkChats) return [];
+    if (!chatSearch.trim()) return larkChats;
     const q = chatSearch.trim().toLowerCase();
-    if (!q) return larkChats;
     return larkChats.filter((c) => c.name.toLowerCase().includes(q));
   }, [larkChats, chatSearch]);
 
@@ -153,8 +150,8 @@ export default function SetupPage() {
           demoMode,
           privacyConfirmed,
           defaultSyncDays,
-          source: demoMode ? 'demo' : source,
-          larkChatFilter: source === 'lark' ? filter : undefined,
+          source: demoMode ? 'demo' : 'lark',
+          larkChatFilter: filter,
           port,
           larkCliPath,
           openApiKey,
@@ -176,25 +173,16 @@ export default function SetupPage() {
   return (
     <main className="min-h-screen bg-[var(--bg)] px-6 py-8 text-[var(--text)]">
       <div className="mx-auto max-w-4xl">
-        <div className="report-kicker">WeChat Radar Setup</div>
+        <div className="report-kicker">Lark Radar Setup</div>
         <h1 className="mt-2 text-[28px] font-semibold">配置雷达</h1>
         <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2)]">
-          首次运行需要选择数据源、确认本地环境、填写你的昵称。所有数据默认保存在本机。
+          首次运行需要确认本地环境、填写你的昵称。所有数据默认保存在本机。
         </p>
 
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <section className="card p-5 lg:col-span-2">
             <SectionTitle icon={<Database size={15} />} title="数据源" />
             <div className="mt-4 flex flex-wrap gap-3">
-              <SourceButton
-                active={effectiveSource === 'wechat'}
-                onClick={() => {
-                  setDemoMode(false);
-                  setSource('wechat');
-                }}
-                label="微信"
-                sub="wx-cli + 本机微信"
-              />
               <SourceButton
                 active={effectiveSource === 'lark'}
                 onClick={() => {
@@ -216,24 +204,6 @@ export default function SetupPage() {
 
           <section className="card p-5">
             <SectionTitle icon={<Wrench size={15} />} title="环境检查" />
-            {effectiveSource === 'wechat' && (
-              <>
-                <CheckRow
-                  label="wx-cli"
-                  ok={status?.checks.wxInstalled ?? false}
-                  detail={status?.checks.wxInstalled ? '已安装' : '未检测到 wx 命令'}
-                />
-                <CheckRow
-                  label="wx-daemon"
-                  ok={status?.checks.wxDaemonRunning ?? false}
-                  detail={
-                    status?.checks.wxDaemonRunning
-                      ? `运行中 PID ${status?.checks.wxDaemonPid ?? ''}`
-                      : '未运行，可先使用 demo 模式'
-                  }
-                />
-              </>
-            )}
             {effectiveSource === 'lark' && (
               <>
                 <CheckRow
@@ -310,18 +280,14 @@ export default function SetupPage() {
             />
             <p className="mt-1 text-[11px] text-[var(--text-3)]">修改后需重启应用生效</p>
 
-            {effectiveSource === 'lark' && (
-              <>
-                <label className="mt-4 block text-[12px] text-[var(--text-3)]">lark-cli 路径（可选）</label>
-                <input
-                  value={larkCliPath}
-                  onChange={(e) => setLarkCliPath(e.target.value)}
-                  placeholder="/usr/local/bin/lark-cli"
-                  className="control-surface mt-2 w-full rounded-md px-3 py-2 text-[13px] outline-none"
-                />
-                <p className="mt-1 text-[11px] text-[var(--text-3)]">留空使用 PATH 中的 lark-cli</p>
-              </>
-            )}
+            <label className="mt-4 block text-[12px] text-[var(--text-3)]">lark-cli 路径（可选）</label>
+            <input
+              value={larkCliPath}
+              onChange={(e) => setLarkCliPath(e.target.value)}
+              placeholder="/usr/local/bin/lark-cli"
+              className="control-surface mt-2 w-full rounded-md px-3 py-2 text-[13px] outline-none"
+            />
+            <p className="mt-1 text-[11px] text-[var(--text-3)]">留空使用 PATH 中的 lark-cli</p>
 
             <label className="mt-4 block text-[12px] text-[var(--text-3)]">OpenAPI Key（可选）</label>
             <input
@@ -338,96 +304,110 @@ export default function SetupPage() {
             <SectionTitle icon={<ShieldCheck size={15} />} title="隐私确认" />
             <label className="mt-4 flex items-start gap-2 text-[13px] leading-relaxed">
               <input
-                className="mt-1"
                 type="checkbox"
                 checked={privacyConfirmed}
                 onChange={(e) => setPrivacyConfirmed(e.target.checked)}
+                className="mt-0.5"
               />
               <span>
-                我理解聊天数据会存储在本地 SQLite 中，不会自动上传；我会自行确认数据读取和处理符合相关规则。
+                我确认本工具仅用于个人数据分析，所有消息内容仅保存在本地数据库，不会上传到任何第三方服务器。
               </span>
             </label>
           </section>
 
           {effectiveSource === 'lark' && (
             <section className="card p-5 lg:col-span-2">
-              <SectionTitle icon={<Filter size={15} />} title="飞书群过滤" />
+              <SectionTitle icon={<Filter size={15} />} title="群聊过滤" />
               <div className="mt-3 flex flex-wrap gap-2">
-                <FilterModeButton active={filter.mode === 'all'} onClick={() => setFilter((f) => ({ ...f, mode: 'all' }))} label="全部同步" />
-                <FilterModeButton active={filter.mode === 'allowlist'} onClick={() => setFilter((f) => ({ ...f, mode: 'allowlist' }))} label="仅白名单" />
-                <FilterModeButton active={filter.mode === 'blocklist'} onClick={() => setFilter((f) => ({ ...f, mode: 'blocklist' }))} label="黑名单过滤" />
+                <FilterModeButton
+                  active={filter.mode === 'all'}
+                  onClick={() => setFilter((p) => ({ ...p, mode: 'all' }))}
+                  label="全部群聊"
+                />
+                <FilterModeButton
+                  active={filter.mode === 'allowlist'}
+                  onClick={() => setFilter((p) => ({ ...p, mode: 'allowlist' }))}
+                  label="仅同步选中"
+                />
+                <FilterModeButton
+                  active={filter.mode === 'blocklist'}
+                  onClick={() => setFilter((p) => ({ ...p, mode: 'blocklist' }))}
+                  label="排除选中"
+                />
               </div>
 
-              {filter.mode !== 'all' && (
-                <div className="mt-4">
-                  <div className="flex items-center gap-3">
-                    <div className="relative flex-1">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-3)]" />
-                      <input
-                        value={chatSearch}
-                        onChange={(e) => setChatSearch(e.target.value)}
-                        placeholder="搜索群名称…"
-                        className="control-surface w-full rounded-md py-2 pl-9 pr-3 text-[13px] outline-none"
-                      />
-                    </div>
-                    {larkChats === null && (
-                      <button
-                        type="button"
-                        onClick={loadLarkChats}
-                        className="btn btn-sm whitespace-nowrap text-[12px]"
-                      >
-                        加载群列表
-                      </button>
-                    )}
-                  </div>
-
-                  {larkChatsLoading && (
-                    <div className="mt-3 text-[12px] text-[var(--text-3)]">加载群列表…</div>
+              <div className="mt-3">
+                <div className="flex items-center gap-2">
+                  <Search size={14} className="text-[var(--text-3)]" />
+                  <input
+                    value={chatSearch}
+                    onChange={(e) => setChatSearch(e.target.value)}
+                    placeholder="搜索群聊..."
+                    className="control-surface flex-1 rounded-md px-3 py-1.5 text-[13px] outline-none"
+                  />
+                  <button
+                    className="btn text-[12px]"
+                    onClick={loadLarkChats}
+                    disabled={larkChatsLoading}
+                  >
+                    {larkChatsLoading ? '加载中…' : '加载群列表'}
+                  </button>
+                  {(filter.allowlist.length > 0 || filter.blocklist.length > 0) && (
+                    <button
+                      className="btn text-[12px]"
+                      onClick={() => setFilter({ mode: filter.mode, allowlist: [], blocklist: [] })}
+                    >
+                      清空
+                    </button>
                   )}
-                  {larkChatsError && (
-                    <div className="mt-3 text-[12px] text-[var(--danger)]">{larkChatsError}</div>
-                  )}
-
-                  {!larkChatsLoading && !larkChatsError && larkChats !== null && filteredChats.length === 0 && (
-                    <div className="mt-3 text-[12px] text-[var(--text-3)]">未找到群聊</div>
-                  )}
-
-                  {filteredChats.length > 0 && (
-                    <div className="mt-3 max-h-64 overflow-auto rounded-md border border-[var(--border)]">
-                      {filteredChats.map((chat) => {
-                        const selected =
-                          filter.mode === 'allowlist'
-                            ? filter.allowlist.includes(chat.id)
-                            : filter.blocklist.includes(chat.id);
-                        return (
-                          <label
-                            key={chat.id}
-                            className="flex cursor-pointer items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2 text-[13px] last:border-b-0 hover:bg-[var(--surface-hover)]"
-                          >
-                            <span className="flex min-w-0 flex-col">
-                              <span className="truncate">{chat.name}</span>
-                              <span className="text-[11px] text-[var(--text-3)]">
-                                {chat.member_count} 人 · {chat.id}
-                              </span>
-                            </span>
-                            <input
-                              type="checkbox"
-                              checked={selected}
-                              onChange={(e) => toggleChat(chat.id, e.target.checked)}
-                            />
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <p className="mt-2 text-[11px] text-[var(--text-3)]">
-                    {filter.mode === 'allowlist'
-                      ? '只同步选中的群。'
-                      : '同步所有群，但排除选中的群。'}
-                  </p>
                 </div>
-              )}
+
+                {larkChatsLoading && (
+                  <div className="mt-3 text-[12px] text-[var(--text-3)]">加载群列表…</div>
+                )}
+                {larkChatsError && (
+                  <div className="mt-3 text-[12px] text-[var(--danger)]">{larkChatsError}</div>
+                )}
+
+                {!larkChatsLoading && !larkChatsError && larkChats !== null && filteredChats.length === 0 && (
+                  <div className="mt-3 text-[12px] text-[var(--text-3)]">未找到群聊</div>
+                )}
+
+                {filteredChats.length > 0 && (
+                  <div className="mt-3 max-h-64 overflow-auto rounded-md border border-[var(--border)]">
+                    {filteredChats.map((chat) => {
+                      const selected =
+                        filter.mode === 'allowlist'
+                          ? filter.allowlist.includes(chat.id)
+                          : filter.blocklist.includes(chat.id);
+                      return (
+                        <label
+                          key={chat.id}
+                          className="flex cursor-pointer items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2 text-[13px] last:border-b-0 hover:bg-[var(--surface-hover)]"
+                        >
+                          <span className="flex min-w-0 flex-col">
+                            <span className="truncate">{chat.name}</span>
+                            <span className="text-[11px] text-[var(--text-3)]">
+                              {chat.member_count} 人 · {chat.id}
+                            </span>
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={(e) => toggleChat(chat.id, e.target.checked)}
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <p className="mt-2 text-[11px] text-[var(--text-3)]">
+                  {filter.mode === 'allowlist'
+                    ? '只同步选中的群。'
+                    : '同步所有群，但排除选中的群。'}
+                </p>
+              </div>
             </section>
           )}
         </div>
@@ -435,9 +415,7 @@ export default function SetupPage() {
         {error && <div className="mt-4 text-[13px] text-[var(--danger)]">{error}</div>}
 
         <div className="mt-6 flex justify-end gap-2">
-          <button className="btn" onClick={() => (window.location.href = '/')}>
-            稍后再说
-          </button>
+          <button className="btn" onClick={() => (window.location.href = '/')}>稍后再说</button>
           <button className="btn btn-primary" disabled={busy || !privacyConfirmed} onClick={submit}>
             {busy ? '保存中…' : '完成配置'}
           </button>

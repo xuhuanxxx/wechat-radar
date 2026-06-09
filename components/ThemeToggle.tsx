@@ -4,7 +4,7 @@ import { Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 type Theme = 'light' | 'dark';
-const STORAGE_KEY = 'wechat-radar-theme-v1';
+const STORAGE_KEY = 'lark-radar-theme-v1';
 
 export default function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(() => {

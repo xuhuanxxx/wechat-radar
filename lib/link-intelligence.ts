@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { db } from './db';
-import { wxSessions } from './wx';
+import { loadSessionsSafe } from './sessions';
 import { cache } from './cache';
 
 const MAX_MESSAGES = 5000;
@@ -11,8 +11,8 @@ const MAX_ITEMS_PER_KIND = 24;
 const MAX_TITLE_FETCHES = 8;
 const TITLE_FETCH_TIMEOUT_MS = 1400;
 const MAX_TITLE_GENERATION_ITEMS = 80;
-const CODEX_TIMEOUT_MS = Number(process.env.WECHAT_RADAR_LINK_CODEX_TIMEOUT_MS ?? 180_000);
-const CODEX_MODEL = process.env.WECHAT_RADAR_CODEX_MODEL;
+const CODEX_TIMEOUT_MS = Number(process.env.LARK_RADAR_LINK_CODEX_TIMEOUT_MS ?? 180_000);
+const CODEX_MODEL = process.env.LARK_RADAR_CODEX_MODEL;
 const LINK_INTELLIGENCE_CACHE_VERSION = 'v8';
 const LINK_INTELLIGENCE_CACHE_TTL_SECONDS = 60 * 60 * 24;
 
@@ -162,6 +162,10 @@ function isWeChatArticle(url: URL): boolean {
   );
 }
 
+function isLarkDoc(url: URL): boolean {
+  return /feishu\.cn|larksuite\.com|puml\.cn/.test(url.hostname);
+}
+
 function isArticleLink(url: string): boolean {
   try {
     const u = new URL(url);
@@ -185,6 +189,7 @@ function isToolLink(url: string, content: string): boolean {
       host === 'x.com' ||
       host === 'twitter.com' ||
       (host === 'mp.weixin.qq.com' && !isWeChatArticle(u)) ||
+      isLarkDoc(u) ||
       /meeting\.tencent\.com$/.test(host) ||
       IGNORED_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))
     ) {
@@ -297,7 +302,7 @@ function parseJsonOutput<T>(raw: string): T {
 
 function runCodexJson<T>(prompt: string, schema: unknown, timeoutMs = CODEX_TIMEOUT_MS): Promise<T> {
   return new Promise((resolve, reject) => {
-    const dir = mkdtempSync(join(tmpdir(), 'wechat-links-'));
+    const dir = mkdtempSync(join(tmpdir(), 'lark-links-'));
     const schemaPath = join(dir, 'schema.json');
     const outPath = join(dir, 'response.json');
     writeFileSync(schemaPath, JSON.stringify(schema), 'utf8');
@@ -527,7 +532,7 @@ export async function getDailyLinkIntelligence(
     )
     .all(date, MAX_MESSAGES) as MessageLinkRow[];
 
-  const sessions = await wxSessions(500).catch(() => []);
+  const sessions = await loadSessionsSafe(500).catch(() => []);
   const names = new Map<string, string>();
   for (const s of sessions) names.set(s.username, s.chat);
 

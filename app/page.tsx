@@ -28,7 +28,7 @@ export default function Page() {
   const [rescanning, setRescanning] = useState(false);
   const [rescanInfo, setRescanInfo] = useState<string | undefined>(undefined);
   const [setupChecked, setSetupChecked] = useState(false);
-  const [source, setSource] = useState<'wechat' | 'lark' | 'demo'>('wechat');
+  const [source, setSource] = useState<'lark' | 'demo'>('lark');
 
   useEffect(() => {
     let cancelled = false;
@@ -41,7 +41,7 @@ export default function Page() {
           return;
         }
         if (!cancelled && j.ok) {
-          setSource(j.config?.source ?? 'wechat');
+          setSource(j.config?.source ?? 'lark');
         }
       } catch {}
       if (!cancelled) setSetupChecked(true);

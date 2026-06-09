@@ -27,16 +27,9 @@ type SidebarData = {
   categories: Category[];
 };
 
-type DaemonStatus = {
-  ok: boolean;
-  running: boolean;
-  pid?: number;
-};
-
 export default function Sidebar() {
   const pathname = usePathname();
   const [data, setData] = useState<SidebarData | null>(null);
-  const [daemon, setDaemon] = useState<DaemonStatus | null>(null);
   const [unsorted, setUnsorted] = useState(0);
   const [favorites, setFavorites] = useState(0);
 
@@ -55,11 +48,6 @@ export default function Sidebar() {
           setFavorites(j.sidebar_counts.favorites);
         }
       } catch {}
-      try {
-        const r = await fetch('/api/daemon');
-        const j = await r.json();
-        setDaemon(j);
-      } catch {}
     };
     load();
     const id = setInterval(load, 30_000);
@@ -67,61 +55,33 @@ export default function Sidebar() {
   }, []);
 
   return (
-    <aside className="flex h-screen w-[236px] shrink-0 flex-col border-r border-[var(--border-soft)] bg-[var(--sidebar-bg)] backdrop-blur">
-      <div className="border-b border-[var(--border-soft)] px-4 py-4">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="min-w-0">
-            <div className="report-kicker">Qiaomu Radar</div>
-            <div className="mt-1 text-[15px] font-semibold tracking-wide text-[var(--text)]">
-              微信群聊情报
-            </div>
-          </Link>
+    <aside className="sidebar flex h-full w-56 flex-col border-r border-[var(--border-soft)] bg-[var(--bg-1)]">
+      <div className="flex items-center gap-2 px-4 py-3">
+        <div className="flex size-8 items-center justify-center rounded-lg bg-[var(--accent)] text-white text-[14px] font-bold">
+          📡
+        </div>
+        <div>
+          <div className="text-[13px] font-semibold leading-tight">Lark Radar</div>
+          <div className="text-[10px] text-[var(--text-3)] leading-tight">飞书群聊情报站</div>
+        </div>
+      </div>
+
+      <nav className="flex flex-col gap-0.5 px-2">
+        <NavItem href="/" icon={<LayoutDashboard size={15} />} label="Dashboard" active={pathname === '/'} />
+        <NavItem href="/groups" icon={<Folder size={15} />} label="Groups" active={pathname === '/groups'} badge={unsorted > 0 ? unsorted : undefined} />
+        <NavItem href="/topics" icon={<Sparkles size={15} />} label="Topics" active={pathname === '/topics'} />
+        <NavItem href="/links" icon={<Link2 size={15} />} label="Links" active={pathname === '/links'} />
+        <NavItem href="/mentions" icon={<Inbox size={15} />} label="Mentions" active={pathname === '/mentions'} />
+        <NavItem href="/signals" icon={<Star size={15} />} label="Signals" active={pathname === '/signals'} badge={favorites > 0 ? favorites : undefined} />
+      </nav>
+
+      <div className="mt-auto px-2 pb-2">
+        <NavItem href="/setup" icon={<span className="text-[12px]">⚙️</span>} label="Setup" active={pathname === '/setup'} />
+        <div className="mt-2 px-3">
           <ThemeToggle />
         </div>
-        <div className="mt-2 text-[11px] text-[var(--text-3)]">私有看板 · 高信号优先</div>
       </div>
 
-      <nav className="px-2 pb-2 pt-3">
-        <NavItem
-          href="/"
-          icon={<LayoutDashboard size={15} />}
-          label="看板"
-          badge="Brief"
-          active={pathname === '/'}
-        />
-        <NavItem
-          href="/topics"
-          icon={<Sparkles size={15} />}
-          label="话题雷达"
-          badge="Cross"
-          active={pathname === '/topics'}
-        />
-        <NavItem
-          href="/links"
-          icon={<Link2 size={15} />}
-          label="链接情报"
-          badge="Link"
-          active={pathname === '/links'}
-        />
-      </nav>
-
-      <div className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-3)]">
-        Groups
-      </div>
-      <nav className="px-2">
-        <NavItem href="/groups" icon={<Inbox size={15} />} label="所有群" count={data?.total} />
-        <NavItem href="/groups?filter=favorites" icon={<Star size={15} />} label="收藏" count={favorites} />
-        <NavItem
-          href="/groups?filter=unsorted"
-          icon={<Folder size={15} />}
-          label="未分组"
-          count={unsorted}
-        />
-      </nav>
-
-      <div className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-3)]">
-        Collections
-      </div>
       <div className="flex-1 overflow-y-auto px-2 pb-2">
         {(data?.categories ?? []).map((c) => (
           <CategoryItem key={c.id} category={c} />
@@ -129,17 +89,8 @@ export default function Sidebar() {
       </div>
 
       <div className="border-t border-[var(--border-soft)] px-4 py-2 text-[11px] text-[var(--text-3)]">
-        {daemon?.running ? (
-          <span>
-            <span className="inline-block size-2 rounded-full bg-[var(--accent)] mr-1.5 align-middle" />
-            wx-daemon 运行中{daemon.pid ? ` (PID ${daemon.pid})` : ''}
-          </span>
-        ) : (
-          <span>
-            <span className="inline-block size-2 rounded-full bg-[var(--danger)] mr-1.5 align-middle" />
-            wx-daemon 未运行
-          </span>
-        )}
+        <span className="inline-block size-2 rounded-full bg-[var(--accent)] mr-1.5 align-middle" />
+        Lark Radar
       </div>
     </aside>
   );
@@ -149,38 +100,30 @@ function NavItem({
   href,
   icon,
   label,
-  badge,
-  count,
   active,
+  badge,
 }: {
   href: string;
   icon: React.ReactNode;
   label: string;
-  badge?: string;
-  count?: number;
   active?: boolean;
+  badge?: number;
 }) {
   return (
     <Link
       href={href}
-      className={`group relative flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${
+      className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-[13px] transition-colors ${
         active
-          ? 'bg-[var(--accent-soft)] text-[var(--text)]'
-          : 'text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]'
+          ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-medium'
+          : 'text-[var(--text-2)] hover:bg-[var(--bg-2)]'
       }`}
     >
-      {active && <span className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-[var(--accent)]" />}
-      <span className="flex items-center gap-2">
-        {icon}
-        {label}
-      </span>
-      {badge && (
-        <span className="signal-chip rounded px-1.5 py-0.5 text-[10px] font-medium">
+      {icon}
+      <span className="flex-1">{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span className="ml-auto rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] text-white font-medium">
           {badge}
         </span>
-      )}
-      {count !== undefined && (
-        <span className="text-[11px] text-[var(--text-3)] tabular-nums">{count}</span>
       )}
     </Link>
   );
@@ -189,22 +132,14 @@ function NavItem({
 function CategoryItem({ category }: { category: Category }) {
   return (
     <Link
-      href={`/groups?filter=group&group_id=${category.id}`}
-      className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-[13px] text-[var(--text-2)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+      href={`/groups/${category.id}`}
+      className="flex items-center gap-2 rounded-md px-3 py-1 text-[12px] text-[var(--text-2)] hover:bg-[var(--bg-2)]"
     >
-      <span className="flex items-center gap-2 truncate">
-        <span
-          className="inline-block size-2 shrink-0 rounded-full"
-          style={{ backgroundColor: category.color }}
-        />
-        <span className="truncate">
-          {category.emoji ? `${category.emoji} ` : ''}
-          {category.name}
-        </span>
-      </span>
-      <span className="text-[11px] text-[var(--text-3)] tabular-nums">
-        {category.member_count ?? 0}
-      </span>
+      <span
+        className="inline-block size-2.5 rounded-full"
+        style={{ backgroundColor: category.color }}
+      />
+      <span className="truncate">{category.emoji ? `${category.emoji} ` : ''}{category.name}</span>
     </Link>
   );
 }

@@ -1,7 +1,7 @@
 import { db } from './db';
 import type { MessageRow } from './messages-store';
 
-export type MessageLinkSource = 'wechat_raw' | 'plain_url' | 'public_search' | 'manual';
+export type MessageLinkSource = 'lark_raw' | 'plain_url' | 'public_search' | 'manual';
 
 export interface ParsedMessageLink {
   url: string;
@@ -113,7 +113,7 @@ export function extractMessageLinks(content: string): ParsedMessageLink[] {
   for (const tag of ['url', 'lowurl']) {
     const url = tagText(decoded, tag);
     if (url && isWechatArticleUrl(url)) {
-      candidates.push({ url, source: 'wechat_raw', raw_kind: `appmsg_${tag}`, confidence: 1 });
+      candidates.push({ url, source: 'lark_raw', raw_kind: `appmsg_${tag}`, confidence: 1 });
     }
   }
 
@@ -121,7 +121,7 @@ export function extractMessageLinks(content: string): ParsedMessageLink[] {
     if (!isWechatArticleUrl(value)) continue;
       candidates.push({
         url: value,
-        source: hasXml ? 'wechat_raw' : 'plain_url',
+        source: hasXml ? 'lark_raw' : 'plain_url',
         raw_kind: hasXml ? 'appmsg_attr_url' : 'plain_attr_url',
         confidence: hasXml ? 0.98 : 0.9,
       });
@@ -130,7 +130,7 @@ export function extractMessageLinks(content: string): ParsedMessageLink[] {
   for (const m of decoded.matchAll(/https?:\/\/[^\s<>"']+/g)) {
     const rawUrl = cleanUrl(m[0]);
     const article = isWechatArticleUrl(rawUrl);
-    const source: MessageLinkSource = hasXml && article ? 'wechat_raw' : 'plain_url';
+    const source: MessageLinkSource = hasXml && article ? 'lark_raw' : 'plain_url';
     candidates.push({
       url: rawUrl,
       source,
@@ -279,7 +279,7 @@ export function backfillMessageLinks(since?: string, until?: string): { scanned:
     db()
       .prepare(
         `DELETE FROM message_links
-         WHERE source = 'wechat_raw'
+         WHERE source = 'lark_raw'
            AND canonical_url NOT LIKE '%://mp.weixin.qq.com/%'`,
       )
       .run();

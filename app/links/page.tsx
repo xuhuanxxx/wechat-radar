@@ -296,7 +296,7 @@ function LinkInsightRow({ item, date }: { item: LinkInsight; date: string }) {
 }
 
 function sourceLabel(source?: string): string {
-  if (source === 'wechat_raw') return '微信原文';
+  if (source === 'lark_raw') return '飞书原文';
   if (source === 'public_search') return '公开补链';
   if (source === 'manual') return '手动补链';
   return '网页链接';
@@ -304,7 +304,7 @@ function sourceLabel(source?: string): string {
 
 function sourceClass(source?: string): string {
   const base = 'shrink-0 rounded px-1.5 py-0.5';
-  if (source === 'wechat_raw') return `${base} bg-[var(--accent-soft)] text-[var(--accent)]`;
+  if (source === 'lark_raw') return `${base} bg-[var(--accent-soft)] text-[var(--accent)]`;
   if (source === 'public_search' || source === 'manual') return `${base} bg-[var(--warn-soft)] text-[var(--warn)]`;
   return `${base} bg-[var(--surface-2)] text-[var(--text-3)]`;
 }
