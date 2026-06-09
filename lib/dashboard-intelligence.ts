@@ -2,7 +2,7 @@ import { db } from './db';
 import { cache } from './cache';
 import { todayStr } from './range';
 
-const MAX_ROWS = 1600;
+const MAX_ROWS = 1200;
 const MAX_MUST_READ = 8;
 const MAX_OPPORTUNITIES = 5;
 const MAX_SIGNAL_SOURCES = 8;
@@ -12,7 +12,7 @@ const MAX_LINK_HIGHLIGHTS = 8;
 const MAX_PEOPLE_RADAR = 8;
 const MAX_CONTENT_IDEAS = 6;
 const MAX_ANOMALIES = 6;
-const CACHE_TTL_SECONDS = 90;
+const CACHE_TTL_SECONDS = 120;
 
 const URL_RE = /https?:\/\/[^\s<>"']+/i;
 const URL_GLOBAL_RE = /https?:\/\/[^\s<>"']+/g;
@@ -170,11 +170,11 @@ export function buildDashboardIntelligence(
        FROM messages
        WHERE date >= ?
          AND date <= ?
-         AND length(content) >= 4
+         AND length(content) >= 8
        ORDER BY timestamp DESC
        LIMIT ?`,
     )
-    .all(minusDays(date, 7), date, 9000) as MessageSignalRow[];
+    .all(minusDays(date, 7), date, 5000) as MessageSignalRow[];
   const linkRows = db()
     .prepare(
       `SELECT
@@ -192,8 +192,9 @@ export function buildDashboardIntelligence(
          ON m.chatroom_id = ml.chatroom_id
         AND m.local_id = ml.local_id
        WHERE ml.date = ?
+         AND ml.confidence >= 0.5
        ORDER BY ml.timestamp DESC
-       LIMIT 600`,
+       LIMIT 400`,
     )
     .all(date) as Array<{
     url: string;
@@ -240,6 +241,7 @@ export function buildDashboardIntelligence(
   >();
 
   const seenSnippets = new Set<string>();
+  const seenChatroomSender = new Set<string>();
   for (const row of rows) {
     const clean = cleanContent(row.content);
     if (!clean || NOISE_RE.test(row.content)) continue;
@@ -251,6 +253,12 @@ export function buildDashboardIntelligence(
     const dedupeKey = normalizeDedupe(title || clean);
     if (seenSnippets.has(dedupeKey)) continue;
     seenSnippets.add(dedupeKey);
+
+    // Per-chatroom sender dedup: limit 2 signals per sender per chatroom
+    const csKey = `${row.chatroom_id}#${row.sender}`;
+    const csCount = seenChatroomSender.has(csKey + ':1') ? (seenChatroomSender.has(csKey + ':2') ? 3 : 2) : 1;
+    if (csCount > 2) continue;
+    seenChatroomSender.add(csKey + `:${csCount}`);
 
     const reasons = reasonsFor(clean);
     const item: DashboardSignalItem = {
@@ -401,10 +409,14 @@ function buildActionItems(
 
 function buildTopicLifecycle(date: string, rows: MessageSignalRow[]): DashboardTopicLifecycle[] {
   const dayCounts = new Map<string, Map<string, { count: number; groups: Set<string> }>>();
+  // Pre-compile regexes are already in TOPIC_DEFINITIONS
   for (const row of rows) {
     const d = row.time.slice(0, 10);
     if (!d) continue;
+    // Fast path: skip very short content
+    if (row.content.length < 12) continue;
     const clean = cleanContent(row.content);
+    if (!clean || clean.length < 8) continue;
     for (const topic of TOPIC_DEFINITIONS) {
       if (!topic.re.test(clean)) continue;
       const perDay = dayCounts.get(topic.title) ?? new Map<string, { count: number; groups: Set<string> }>();
@@ -589,7 +601,9 @@ function buildAnomalies(
     arr.push({ date: row.date, total: row.total });
     byGroup.set(row.chatroom_id, arr);
   }
+  let anomalyCount = 0;
   for (const [chatroomId, values] of byGroup) {
+    if (anomalyCount >= MAX_ANOMALIES) break;
     const today = values.find((v) => v.date === date)?.total ?? 0;
     const prev = values.filter((v) => v.date < date).map((v) => v.total);
     if (today < 20 || prev.length === 0) continue;
@@ -602,6 +616,7 @@ function buildAnomalies(
         severity: today >= avg * 4 ? 'high' : 'medium',
         href: `/groups/${encodeURIComponent(chatroomId)}?date=${date}`,
       });
+      anomalyCount++;
     }
   }
 

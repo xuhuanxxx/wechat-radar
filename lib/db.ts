@@ -6,17 +6,52 @@ import { DATA_DIR } from './config';
 const DB_PATH = join(DATA_DIR, 'radar.db');
 
 let _db: Database.Database | null = null;
+let _dbInitTime = 0;
 
 export function db(): Database.Database {
-  if (_db) return _db;
+  if (_db) {
+    // Health check: verify connection is still valid
+    try {
+      _db.prepare('SELECT 1').get();
+      return _db;
+    } catch {
+      // Connection lost, recreate
+      _db = null;
+    }
+  }
   const dir = dirname(DB_PATH);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   _db = new Database(DB_PATH);
+  _dbInitTime = Date.now();
+
+  // Performance pragmas
   _db.pragma('journal_mode = WAL');
   _db.pragma('foreign_keys = ON');
+  _db.pragma('synchronous = NORMAL');        // Balance durability and speed
+  _db.pragma('temp_store = MEMORY');          // Store temp tables in memory
+  _db.pragma('mmap_size = 268435456');        // 256MB memory-mapped I/O
+  _db.pragma('cache_size = -65536');          // 64MB page cache (negative = KB)
+  _db.pragma('page_size = 4096');             // Optimal page size for most workloads
+  _db.pragma('auto_vacuum = INCREMENTAL');    // Reclaim space incrementally
+  _db.pragma('busy_timeout = 5000');          // Wait up to 5s on lock contention
+
   migrate(_db);
   seed(_db);
   return _db;
+}
+
+/** Force close and reopen the DB connection (useful for tests or recovery) */
+export function resetDb(): Database.Database {
+  if (_db) {
+    try { _db.close(); } catch { /* ignore */ }
+    _db = null;
+  }
+  return db();
+}
+
+/** Get DB connection age in ms */
+export function dbConnectionAge(): number {
+  return _db ? Date.now() - _dbInitTime : 0;
 }
 
 function migrate(d: Database.Database) {
@@ -66,6 +101,7 @@ function migrate(d: Database.Database) {
     );
 
     CREATE INDEX IF NOT EXISTS idx_mentions_time ON mentions(timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_mentions_chatroom ON mentions(chatroom_id);
 
     CREATE TABLE IF NOT EXISTS messages (
       chatroom_id TEXT NOT NULL,
@@ -80,12 +116,13 @@ function migrate(d: Database.Database) {
       source TEXT NOT NULL DEFAULT 'lark',
       raw TEXT,
       PRIMARY KEY (chatroom_id, local_id)
-    );
+    ) WITHOUT ROWID;
 
     CREATE INDEX IF NOT EXISTS idx_messages_chatroom_date ON messages(chatroom_id, date);
     CREATE INDEX IF NOT EXISTS idx_messages_date ON messages(date);
     CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp DESC);
     CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender);
+    CREATE INDEX IF NOT EXISTS idx_messages_chatroom_timestamp ON messages(chatroom_id, timestamp DESC);
 
     CREATE TABLE IF NOT EXISTS message_links (
       chatroom_id TEXT NOT NULL,
@@ -104,7 +141,7 @@ function migrate(d: Database.Database) {
       confidence REAL NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL,
       PRIMARY KEY (chatroom_id, local_id, canonical_url)
-    );
+    ) WITHOUT ROWID;
 
     CREATE INDEX IF NOT EXISTS idx_message_links_date
       ON message_links(date, timestamp DESC);
@@ -114,6 +151,8 @@ function migrate(d: Database.Database) {
       ON message_links(domain);
     CREATE INDEX IF NOT EXISTS idx_message_links_source
       ON message_links(source);
+    CREATE INDEX IF NOT EXISTS idx_message_links_chatroom
+      ON message_links(chatroom_id, date);
 
     CREATE TABLE IF NOT EXISTS topics (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -134,9 +173,10 @@ function migrate(d: Database.Database) {
       score REAL NOT NULL DEFAULT 0,
       PRIMARY KEY (topic_id, chatroom_id, local_id),
       FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
-    );
+    ) WITHOUT ROWID;
 
     CREATE INDEX IF NOT EXISTS idx_topic_messages_topic ON topic_messages(topic_id);
+    CREATE INDEX IF NOT EXISTS idx_topic_messages_chatroom ON topic_messages(chatroom_id);
 
     CREATE TABLE IF NOT EXISTS link_intelligence_cache (
       date TEXT NOT NULL,
@@ -158,7 +198,10 @@ function migrate(d: Database.Database) {
       total_messages INTEGER NOT NULL DEFAULT 0,
       last_sync_time TEXT,
       PRIMARY KEY (chatroom_id, source)
-    );
+    ) WITHOUT ROWID;
+
+    CREATE INDEX IF NOT EXISTS idx_sync_state_chatroom ON sync_state(chatroom_id);
+    CREATE INDEX IF NOT EXISTS idx_sync_state_source ON sync_state(source);
 
     CREATE TABLE IF NOT EXISTS meta (
       key TEXT PRIMARY KEY,
@@ -210,6 +253,7 @@ function migrate(d: Database.Database) {
       CREATE INDEX IF NOT EXISTS idx_message_links_canonical ON message_links(canonical_url);
       CREATE INDEX IF NOT EXISTS idx_message_links_domain ON message_links(domain);
       CREATE INDEX IF NOT EXISTS idx_message_links_source ON message_links(source);
+      CREATE INDEX IF NOT EXISTS idx_message_links_chatroom ON message_links(chatroom_id, date);
     `);
   }
 
@@ -233,6 +277,7 @@ function migrate(d: Database.Database) {
       DROP TABLE mentions;
       ALTER TABLE mentions_new RENAME TO mentions;
       CREATE INDEX IF NOT EXISTS idx_mentions_time ON mentions(timestamp DESC);
+      CREATE INDEX IF NOT EXISTS idx_mentions_chatroom ON mentions(chatroom_id);
     `);
   }
 
@@ -254,12 +299,11 @@ function migrate(d: Database.Database) {
       DROP TABLE topic_messages;
       ALTER TABLE topic_messages_new RENAME TO topic_messages;
       CREATE INDEX IF NOT EXISTS idx_topic_messages_topic ON topic_messages(topic_id);
+      CREATE INDEX IF NOT EXISTS idx_topic_messages_chatroom ON topic_messages(chatroom_id);
     `);
   }
 
   // SQLite < 3.35.0 does not support DROP COLUMN; we recreate sync_state if needed
-  // to switch from single-column PK to composite PK. This is safe because sync_state
-  // is derived data that can be rebuilt from messages.
   const syncInfo = d.prepare("PRAGMA table_info(sync_state)").all() as Array<{ name: string; pk: number }>;
   const hasSource = syncInfo.some((c) => c.name === 'source');
   const pkCols = syncInfo.filter((c) => c.pk > 0).map((c) => c.name);
@@ -331,11 +375,9 @@ function seed(d: Database.Database) {
 
   if (meta?.value === SEED_VERSION) return;
 
-  // Check if any groups have user tags — if so, leave them alone (additive seed).
   const tagged = d.prepare('SELECT COUNT(*) AS n FROM group_tags').get() as { n: number };
 
   if (tagged.n === 0) {
-    // Safe to wipe and re-seed.
     d.prepare('DELETE FROM groups').run();
   }
 

@@ -1,4 +1,5 @@
 import { db } from './db';
+import { cache, CK } from './cache';
 
 export interface GroupRow {
   id: number;
@@ -12,7 +13,9 @@ export interface GroupRow {
 }
 
 export function listGroups(): GroupRow[] {
-  return db()
+  const cached = cache.get<GroupRow[]>(CK.larkFilter());
+  if (cached) return cached;
+  const rows = db()
     .prepare(
       `SELECT g.*,
               (SELECT COUNT(*) FROM group_tags t WHERE t.group_id = g.id) AS member_count
@@ -20,6 +23,13 @@ export function listGroups(): GroupRow[] {
        ORDER BY g.sort_order ASC, g.id ASC`,
     )
     .all() as GroupRow[];
+  cache.set(CK.larkFilter(), rows, 300);
+  return rows;
+}
+
+function invalidateGroupsCache() {
+  cache.del(CK.larkFilter());
+  cache.del(CK.sessions());
 }
 
 export function createGroup(input: { name: string; color: string; emoji?: string }) {
@@ -30,23 +40,27 @@ export function createGroup(input: { name: string; color: string; emoji?: string
     'INSERT INTO groups (name, color, emoji, sort_order, created_at) VALUES (?, ?, ?, ?, ?)',
   );
   const info = stmt.run(input.name, input.color, input.emoji ?? null, max.m + 1, Date.now());
+  invalidateGroupsCache();
   return Number(info.lastInsertRowid);
 }
 
 export function deleteGroup(id: number) {
   db().prepare('DELETE FROM groups WHERE id = ?').run(id);
+  invalidateGroupsCache();
 }
 
 export function tagGroup(chatroomId: string, groupId: number) {
   db()
     .prepare('INSERT OR IGNORE INTO group_tags (chatroom_id, group_id) VALUES (?, ?)')
     .run(chatroomId, groupId);
+  invalidateGroupsCache();
 }
 
 export function untagGroup(chatroomId: string, groupId: number) {
   db()
     .prepare('DELETE FROM group_tags WHERE chatroom_id = ? AND group_id = ?')
     .run(chatroomId, groupId);
+  invalidateGroupsCache();
 }
 
 export function tagsForChatroom(chatroomId: string): number[] {
@@ -92,4 +106,5 @@ export function setFavorite(chatroomId: string, fav: boolean) {
   } else {
     db().prepare('DELETE FROM favorites WHERE chatroom_id = ?').run(chatroomId);
   }
+  invalidateGroupsCache();
 }

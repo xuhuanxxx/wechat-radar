@@ -11,6 +11,7 @@ import { upsertLinksForMessage } from './message-links';
 import { aggregateDailyStats } from './messages-store';
 import { saveStats } from './stats-aggregator';
 import { rebuildMentionIndexFromMessages } from './mentions';
+import { cache, CK } from './cache';
 
 export interface LarkSyncResult {
   ok: boolean;
@@ -284,130 +285,167 @@ export async function syncLarkMessages(opts: {
       ? new Date(Date.now() - opts.daysBack * 24 * 60 * 60 * 1000).toISOString()
       : undefined;
 
-    for (const chat of chats) {
-      const cid = chat.chat_id;
-      result.synced[cid] = { inserted: 0, skipped: 0, error: null };
+    // Parallel sync with concurrency limit
+    const CONCURRENCY = 3;
+    const queue = [...chats];
+    const running = new Set<Promise<void>>();
 
-      // 2. Per-chat cooldown check
-      const lastSync = _lastSyncByChat.get(cid) ?? 0;
-      const now = Date.now();
-      if (now - lastSync < CHAT_COOLDOWN_MS) {
-        result.synced[cid].error = `冷却中，上次同步 ${Math.round((now - lastSync) / 1000)} 秒前`;
-        continue;
-      }
-      _lastSyncByChat.set(cid, now);
-
-      // Load last sync timestamp for incremental sync
-      const stateRow = db()
-        .prepare('SELECT last_sync_time FROM sync_state WHERE chatroom_id = ? AND source = ?')
-        .get(cid, 'lark') as { last_sync_time: string | null } | undefined;
-      const startTime = stateRow?.last_sync_time || since;
-
-      try {
-        opts?.onProgress?.(cid, { phase: 'fetch', count: 0 });
-        const messages = await larkAllMessages(cid, {
-          start: startTime,
-          maxPages: 4,
+    async function pumpQueue(): Promise<void> {
+      while (queue.length > 0 && running.size < CONCURRENCY) {
+        const chat = queue.shift()!;
+        const p = syncSingleChat(chat, since, opts.onProgress, result, cfg).finally(() => {
+          running.delete(p);
         });
+        running.add(p);
+      }
+    }
 
-        opts?.onProgress?.(cid, { phase: 'persist', count: messages.length });
-        const { inserted, skipped, changedDates } = persistMessages(cid, messages);
-        result.synced[cid].inserted = inserted;
-        result.synced[cid].skipped = skipped;
-
-        // Update sync_state
-        const maxTime = messages.reduce((max, m) => {
-          const t = m.create_time ? Number(m.create_time) : 0;
-          return t > max ? t : max;
-        }, 0);
-        const lastSyncTime = maxTime
-          ? new Date(maxTime).toISOString()
-          : startTime || new Date().toISOString();
-
-        const firstDate = messages.length
-          ? formatDate(Math.min(...messages.map((m) => Number(m.create_time || Date.now()) / 1000)))
-          : null;
-        const lastDate = messages.length
-          ? formatDate(Math.max(...messages.map((m) => Number(m.create_time || Date.now()) / 1000)))
-          : null;
-
-        const total = db()
-          .prepare('SELECT COUNT(*) AS n FROM messages WHERE chatroom_id = ? AND source = ?')
-          .get(cid, 'lark') as { n: number };
-
-        db()
-          .prepare(
-            `INSERT INTO sync_state (
-               chatroom_id, source, last_synced_at, first_message_date, last_message_date,
-               total_messages, status, last_error, failed_chunks, empty_chunks, total_chunks, last_sync_time
-             )
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-             ON CONFLICT(chatroom_id, source) DO UPDATE SET
-               last_synced_at = excluded.last_synced_at,
-               first_message_date = COALESCE(excluded.first_message_date, sync_state.first_message_date),
-               last_message_date = COALESCE(excluded.last_message_date, sync_state.last_message_date),
-               total_messages = excluded.total_messages,
-               status = excluded.status,
-               last_error = excluded.last_error,
-               last_sync_time = excluded.last_sync_time`,
-          )
-          .run(
-            cid,
-            'lark',
-            Date.now(),
-            firstDate,
-            lastDate,
-            total.n,
-            'ok',
-            null,
-            0,
-            messages.length === 0 ? 1 : 0,
-            1,
-            lastSyncTime,
-          );
-
-        // 4. Optimize: only aggregate daily_stats for changed dates
-        if (changedDates.size > 0) {
-          const dateList = Array.from(changedDates).sort();
-          const buckets = aggregateDailyStats(cid, dateList);
-          for (const b of buckets) {
-            saveStats({
-              chatroom_id: cid,
-              date: b.date,
-              total: b.total,
-              top_senders: b.top_senders,
-              by_hour: b.by_hour,
-            });
-          }
-        }
-      } catch (e) {
-        const err = e instanceof Error ? e.message : 'unknown';
-        result.synced[cid].error = err;
-        db()
-          .prepare(
-            `INSERT INTO sync_state (chatroom_id, source, last_synced_at, status, last_error, total_messages)
-             VALUES (?, ?, ?, ?, ?, ?)
-             ON CONFLICT(chatroom_id, source) DO UPDATE SET
-               last_synced_at = excluded.last_synced_at,
-               status = 'failed',
-               last_error = excluded.last_error`,
-          )
-          .run(cid, 'lark', Date.now(), 'failed', err, 0);
+    while (queue.length > 0 || running.size > 0) {
+      await pumpQueue();
+      if (running.size > 0) {
+        await Promise.race(running);
       }
     }
 
     result.ok = Object.values(result.synced).every((s) => s.error === null);
 
-    // 5. Rebuild mentions index once at the end (not per-chat)
+    // Rebuild mentions index once at the end
     const anyInserted = Object.values(result.synced).some((s) => s.inserted > 0);
     if (anyInserted) {
       rebuildMentionIndexFromMessages();
+      // Invalidate relevant caches
+      cache.del(CK.mentions());
+      cache.del(CK.sessions());
     }
   } finally {
     _syncRunning = false;
   }
 
   return result;
+}
+
+async function syncSingleChat(
+  chat: LarkChat,
+  since: string | undefined,
+  onProgress: ((chatId: string, info: { phase: string; count: number }) => void) | undefined,
+  result: LarkSyncResult,
+  cfg: Config,
+): Promise<void> {
+  const cid = chat.chat_id;
+  result.synced[cid] = { inserted: 0, skipped: 0, error: null };
+
+  // Per-chat cooldown check
+  const lastSync = _lastSyncByChat.get(cid) ?? 0;
+  const now = Date.now();
+  if (now - lastSync < CHAT_COOLDOWN_MS) {
+    result.synced[cid].error = `冷却中，上次同步 ${Math.round((now - lastSync) / 1000)} 秒前`;
+    return;
+  }
+  _lastSyncByChat.set(cid, now);
+
+  // Load last sync timestamp for incremental sync
+  const stateRow = db()
+    .prepare('SELECT last_sync_time FROM sync_state WHERE chatroom_id = ? AND source = ?')
+    .get(cid, 'lark') as { last_sync_time: string | null } | undefined;
+  const startTime = stateRow?.last_sync_time || since;
+
+  try {
+    onProgress?.(cid, { phase: 'fetch', count: 0 });
+    const messages = await larkAllMessages(cid, {
+      start: startTime,
+      maxPages: 4,
+    });
+
+    onProgress?.(cid, { phase: 'persist', count: messages.length });
+    const { inserted, skipped, changedDates } = persistMessages(cid, messages);
+    result.synced[cid].inserted = inserted;
+    result.synced[cid].skipped = skipped;
+
+    // Update sync_state
+    const maxTime = messages.reduce((max, m) => {
+      const t = m.create_time ? Number(m.create_time) : 0;
+      return t > max ? t : max;
+    }, 0);
+    const lastSyncTime = maxTime
+      ? new Date(maxTime).toISOString()
+      : startTime || new Date().toISOString();
+
+    const firstDate = messages.length
+      ? formatDate(Math.min(...messages.map((m) => Number(m.create_time || Date.now()) / 1000)))
+      : null;
+    const lastDate = messages.length
+      ? formatDate(Math.max(...messages.map((m) => Number(m.create_time || Date.now()) / 1000)))
+      : null;
+
+    const total = db()
+      .prepare('SELECT COUNT(*) AS n FROM messages WHERE chatroom_id = ? AND source = ?')
+      .get(cid, 'lark') as { n: number };
+
+    db()
+      .prepare(
+        `INSERT INTO sync_state (
+           chatroom_id, source, last_synced_at, first_message_date, last_message_date,
+           total_messages, status, last_error, failed_chunks, empty_chunks, total_chunks, last_sync_time
+         )
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(chatroom_id, source) DO UPDATE SET
+           last_synced_at = excluded.last_synced_at,
+           first_message_date = COALESCE(excluded.first_message_date, sync_state.first_message_date),
+           last_message_date = COALESCE(excluded.last_message_date, sync_state.last_message_date),
+           total_messages = excluded.total_messages,
+           status = excluded.status,
+           last_error = excluded.last_error,
+           last_sync_time = excluded.last_sync_time`,
+      )
+      .run(
+        cid,
+        'lark',
+        Date.now(),
+        firstDate,
+        lastDate,
+        total.n,
+        'ok',
+        null,
+        0,
+        messages.length === 0 ? 1 : 0,
+        1,
+        lastSyncTime,
+      );
+
+    // Only aggregate daily_stats for changed dates
+    if (changedDates.size > 0) {
+      const dateList = Array.from(changedDates).sort();
+      const buckets = aggregateDailyStats(cid, dateList);
+      for (const b of buckets) {
+        saveStats({
+          chatroom_id: cid,
+          date: b.date,
+          total: b.total,
+          top_senders: b.top_senders,
+          by_hour: b.by_hour,
+        });
+      }
+      // Invalidate stats cache for changed dates
+      for (const d of changedDates) {
+        cache.del(CK.stats('day', d));
+        cache.del(CK.stats('week', d));
+        cache.del(CK.stats('month', d));
+      }
+    }
+  } catch (e) {
+    const err = e instanceof Error ? e.message : 'unknown';
+    result.synced[cid].error = err;
+    db()
+      .prepare(
+        `INSERT INTO sync_state (chatroom_id, source, last_synced_at, status, last_error, total_messages)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(chatroom_id, source) DO UPDATE SET
+           last_synced_at = excluded.last_synced_at,
+           status = 'failed',
+           last_error = excluded.last_error`,
+      )
+      .run(cid, 'lark', Date.now(), 'failed', err, 0);
+  }
 }
 
 function persistMessages(
@@ -426,63 +464,66 @@ function persistMessages(
   let skipped = 0;
   const changedDates = new Set<string>();
 
-  const tx = db().transaction((msgs: LarkMessage[]) => {
-    for (const m of msgs) {
-      if (!m.message_id) continue;
+  // Batch process in chunks to avoid long transactions
+  const BATCH_SIZE = 500;
+  for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+    const batch = messages.slice(i, i + BATCH_SIZE);
 
-      // 3. In-memory dedup: skip if we've seen this message_id recently
-      const cacheKey = `${chatId}#${m.message_id}`;
-      if (_messageIdCache.has(cacheKey)) {
-        skipped++;
-        continue;
-      }
+    const tx = db().transaction((msgs: LarkMessage[]) => {
+      for (const m of msgs) {
+        if (!m.message_id) continue;
 
-      const row = larkMessageToRow(chatId, m);
-      const r = insertStmt.run(
-        row.chatroom_id,
-        row.local_id,
-        row.sender,
-        row.sender_name,
-        row.content,
-        row.time,
-        row.timestamp,
-        row.type,
-        row.date,
-        row.source,
-        row.raw,
-      );
-      if (r.changes > 0) {
-        inserted++;
-        changedDates.add(row.date);
-        upsertLinksForMessage({
-          chatroom_id: row.chatroom_id,
-          local_id: row.local_id,
-          sender: row.sender_name || row.sender,
-          content: row.content,
-          time: row.time,
-          timestamp: row.timestamp,
-          date: row.date,
-        });
-
-        // Add to dedup cache
-        _messageIdCache.add(cacheKey);
-        if (_messageIdCache.size > MAX_CACHE_SIZE) {
-          // Simple eviction: clear half the cache when full
-          const toDelete = Math.floor(MAX_CACHE_SIZE / 2);
-          const iter = _messageIdCache.values();
-          for (let i = 0; i < toDelete; i++) {
-            const val = iter.next().value;
-            if (val) _messageIdCache.delete(val);
-          }
+        const cacheKey = `${chatId}#${m.message_id}`;
+        if (_messageIdCache.has(cacheKey)) {
+          skipped++;
+          continue;
         }
-      } else {
-        skipped++;
-        // Also cache DB-level duplicates
-        _messageIdCache.add(cacheKey);
-      }
-    }
-  });
 
-  tx(messages);
+        const row = larkMessageToRow(chatId, m);
+        const r = insertStmt.run(
+          row.chatroom_id,
+          row.local_id,
+          row.sender,
+          row.sender_name,
+          row.content,
+          row.time,
+          row.timestamp,
+          row.type,
+          row.date,
+          row.source,
+          row.raw,
+        );
+        if (r.changes > 0) {
+          inserted++;
+          changedDates.add(row.date);
+          upsertLinksForMessage({
+            chatroom_id: row.chatroom_id,
+            local_id: row.local_id,
+            sender: row.sender_name || row.sender,
+            content: row.content,
+            time: row.time,
+            timestamp: row.timestamp,
+            date: row.date,
+          });
+
+          _messageIdCache.add(cacheKey);
+          if (_messageIdCache.size > MAX_CACHE_SIZE) {
+            const toDelete = Math.floor(MAX_CACHE_SIZE / 2);
+            const iter = _messageIdCache.values();
+            for (let i = 0; i < toDelete; i++) {
+              const val = iter.next().value;
+              if (val) _messageIdCache.delete(val);
+            }
+          }
+        } else {
+          skipped++;
+          _messageIdCache.add(cacheKey);
+        }
+      }
+    });
+
+    tx(batch);
+  }
+
   return { inserted, skipped, changedDates };
 }
