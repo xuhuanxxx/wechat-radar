@@ -1,9 +1,16 @@
-# Lark Radar 数据层 API 规范
+# Lark Radar 数据服务 API 规范
 
-> 版本: v1.0
-> 基础路径: `http://localhost:3456`
+> 版本: v2.0
+> 基础路径: 用户 Mac 上的 HTTP 服务（默认 `http://localhost:3456`）
 > 格式: JSON
 > CORS: 允许所有来源
+> 协议: HTTP/1.1 + WebSocket
+
+## 设计原则
+
+- 数据服务只暴露 API，不感知调用方是谁
+- Web 服务通过配置连接到数据服务
+- 支持 HTTP REST API 和 WebSocket 实时推送
 
 ## 通用约定
 
@@ -855,4 +862,80 @@ data: {"type":"done","count":5}
   "processed": 100,
   "resolved": 45
 }
+```
+
+---
+
+## 18. WebSocket API
+
+### WS /ws
+
+实时推送连接，用于同步进度、新消息通知等。
+
+**连接:**
+```javascript
+const ws = new WebSocket('ws://localhost:3456/ws');
+```
+
+**事件类型:**
+
+#### sync-progress
+同步进度推送（替代 SSE）。
+
+```json
+{
+  "type": "sync-progress",
+  "chatId": "oc_xxx",
+  "phase": "persist",
+  "count": 45
+}
+```
+
+#### sync-finished
+同步完成。
+
+```json
+{
+  "type": "sync-finished",
+  "ok": true,
+  "synced": {
+    "oc_xxx": { "inserted": 45, "skipped": 120, "error": null }
+  }
+}
+```
+
+#### new-messages
+新消息到达通知。
+
+```json
+{
+  "type": "new-messages",
+  "chatroom_id": "oc_xxx",
+  "count": 5,
+  "timestamp": 1717921800
+}
+```
+
+#### mention
+@提及通知。
+
+```json
+{
+  "type": "mention",
+  "chatroom_id": "oc_xxx",
+  "sender": "李四",
+  "content": "@张三 帮忙看一下",
+  "timestamp": 1717908000
+}
+```
+
+#### ping/pong
+心跳保活。
+
+```json
+// 服务端 → 客户端
+{ "type": "ping", "timestamp": 1717921800 }
+
+// 客户端 → 服务端
+{ "type": "pong", "timestamp": 1717921800 }
 ```

@@ -1,13 +1,18 @@
 # Lark Radar 数据迁移计划
 
-> 版本: v1.0
+> 版本: v2.0
 > 日期: 2026-06-09
 > 从: Next.js 全栈应用
-> 到: Go 数据服务 + Next.js Web 代理
+> 到: Go macOS 数据服务 + Next.js Web 服务（完全解耦）
 
 ## 迁移概述
 
 将现有 TypeScript 数据层迁移到 Go，保持 API 格式 100% 兼容，前端无需修改。
+
+**关键原则**:
+- macOS 数据服务只暴露 API，不感知 Web 存在
+- Web 服务通过 `DATA_API_URL` 配置连接数据服务
+- 两者完全独立，可独立部署升级
 
 ## 迁移范围
 

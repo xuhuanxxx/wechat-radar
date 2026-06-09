@@ -1,21 +1,23 @@
 # Lark Radar 部署指南
 
-> 版本: v1.0
+> 版本: v2.0
 > 日期: 2026-06-09
 
 ## 概述
 
-Lark Radar 采用三层分离架构：
+Lark Radar 由两个独立组件组成：
 
-1. **Web 层**: Docker 容器化部署
-2. **数据层**: Go 二进制，内嵌于 macOS app
-3. **UI 层**: Swift 菜单栏应用
+1. **macOS 数据服务**: 仅运行在用户 Mac 上，负责 SQLite + lark-cli 同步
+2. **Web 服务**: 无状态纯前端，可部署到公网/内网/本地，通过 HTTP/WebSocket API 消费数据
 
-本文档描述各组件的部署方式。
+**关键原则**:
+- macOS 数据服务不感知 Web 服务的存在、位置、入口
+- Web 服务通过配置知道数据服务地址
+- 两者完全独立部署，独立生命周期
 
 ---
 
-## 1. 数据层部署（macOS）
+## 1. macOS 数据服务部署
 
 ### 1.1 前置要求
 
@@ -63,7 +65,6 @@ cd ../macos/LarkRadarMenu
 swift build -c release
 
 # 3. 打包 app
-# 使用 Xcode Archive 或脚本
 ./scripts/build-macos-app.sh
 ```
 
@@ -86,17 +87,27 @@ LarkRadar.app/
 3. 首次启动：
    - 点击菜单栏图标
    - 选择「打开设置」配置昵称
-   - 数据服务自动启动
-4. 浏览器访问 `http://localhost:3000`（Web 容器）
+   - 数据服务自动启动（:3456）
+4. **通过浏览器访问 Web 服务**（Web 入口由用户/管理员提供）
+
+### 1.7 菜单栏功能
+
+- **状态显示**: 🟢 运行中 / 🔴 已停止
+- **立即同步**: 手动触发飞书数据同步
+- **打开数据目录**: 在 Finder 中打开 `~/.lark-radar/`
+- **设置**: 修改配置（昵称、同步间隔等）
+- **退出**: 停止数据服务并退出
+
+**注意**: 菜单栏没有"打开 Web"选项——不感知 Web 存在
 
 ---
 
-## 2. Web 层部署（Docker）
+## 2. Web 服务部署
 
 ### 2.1 前置要求
 
 - Docker 20.10+
-- 数据层已在运行（macOS 上 `:3456`）
+- 知道数据服务地址（用户 Mac 的 IP:3456）
 
 ### 2.2 Dockerfile
 
@@ -112,8 +123,10 @@ RUN pnpm build
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-ENV DATA_API_URL=http://host.docker.internal:3456
 ENV PORT=3000
+
+# DATA_API_URL 在运行时才确定
+# ENV DATA_API_URL=http://...
 
 # 仅复制 standalone 构建产物
 COPY --from=builder /app/.next/standalone ./
@@ -136,9 +149,10 @@ docker tag lark-radar-web:latest lark-radar-web:1.0.0
 
 ### 2.4 运行容器
 
-#### macOS 开发环境
+#### 场景 A: Web 和数据都在本地（开发）
 
 ```bash
+# macOS 上同时运行数据服务和 Web
 docker run -d \
   --name lark-radar-web \
   -p 3000:3000 \
@@ -147,15 +161,42 @@ docker run -d \
   lark-radar-web:latest
 ```
 
-#### Linux 环境
+#### 场景 B: Web 在公网服务器，数据在用户 Mac
 
 ```bash
-# 数据层监听 0.0.0.0:3456（需配置）
+# 公网服务器上运行 Web
+# 用户 Mac 需配置端口转发或 VPN，使公网可访问 :3456
+
+# 方式 1: 用户 Mac 使用 ngrok/frp 暴露端口
+# ngrok http 3456 → 获得 https://xxx.ngrok.io
+
+# Web 服务配置
 docker run -d \
   --name lark-radar-web \
   -p 3000:3000 \
-  -e DATA_API_URL=http://192.168.1.100:3456 \
+  -e DATA_API_URL=https://xxx.ngrok.io \
   lark-radar-web:latest
+
+# 方式 2: 公司 VPN/内网穿透
+# 用户 Mac 在 VPN 中获得固定内网 IP
+docker run -d \
+  --name lark-radar-web \
+  -p 3000:3000 \
+  -e DATA_API_URL=http://192.168.100.50:3456 \
+  lark-radar-web:latest
+```
+
+#### 场景 C: Web 在公司内网服务器
+
+```bash
+# 内网服务器
+docker run -d \
+  --name lark-radar-web \
+  -p 3000:3000 \
+  -e DATA_API_URL=http://user-mac.local:3456 \
+  lark-radar-web:latest
+
+# 用户 Mac 需在同一内网，或 VPN 接入
 ```
 
 #### docker-compose.yml
@@ -169,6 +210,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      # 根据场景修改此地址
       - DATA_API_URL=http://host.docker.internal:3456
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -189,117 +231,174 @@ docker ps
 # 查看日志
 docker logs lark-radar-web
 
-# 测试代理
+# 测试代理（从 Web 服务器）
 curl http://localhost:3000/api/health
 # 应转发到数据层，返回健康状态
 ```
 
 ---
 
-## 3. 完整部署拓扑
+## 3. 部署拓扑示例
 
-### 3.1 本地开发
-
-```
-┌─────────────────┐
-│  macOS Host     │
-│  ┌───────────┐  │
-│  │ Go 服务    │  │  :3456
-│  │ (终端 1)   │  │
-│  └───────────┘  │
-│  ┌───────────┐  │
-│  │ Web 容器   │  │  :3000
-│  │ (终端 2)   │  │
-│  └───────────┘  │
-│  ┌───────────┐  │
-│  │ 浏览器     │  │
-│  │ localhost │  │
-│  └───────────┘  │
-└─────────────────┘
-```
-
-### 3.2 生产部署（单用户）
+### 拓扑 A: 个人本地使用
 
 ```
-┌─────────────────┐     ┌─────────────────┐
-│   macOS 电脑     │     │  Docker 主机    │
-│  ┌───────────┐  │     │  ┌───────────┐  │
-│  │ LarkRadar │  │◄────┤  │ Web 容器   │  │  :3000
-│  │ App       │  │ HTTP │  │           │  │
-│  │ (Go 3456) │  │      │  └───────────┘  │
-│  └───────────┘  │      └─────────────────┘
-└─────────────────┘
+┌─────────────────────────────────────────────┐
+│                用户 Mac                       │
+│  ┌─────────────────┐  ┌─────────────────┐  │
+│  │  Web 服务        │  │  macOS 数据服务  │  │
+│  │  (Docker :3000) │  │  (Go :3456)     │  │
+│  │                 │◄─┤                 │  │
+│  └─────────────────┘  └─────────────────┘  │
+│           ↑                                │
+│      浏览器 localhost:3000                  │
+└─────────────────────────────────────────────┘
+
+DATA_API_URL=http://host.docker.internal:3456
 ```
 
-### 3.3 生产部署（多用户/服务器）
+### 拓扑 B: 公网 Web + 本地数据
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   用户 1        │     │   用户 2        │     │   用户 N        │
-│  ┌───────────┐  │     │  ┌───────────┐  │     │  ┌───────────┐  │
-│  │ LarkRadar │  │     │  │ LarkRadar │  │     │  │ LarkRadar │  │
-│  │ App       │  │     │  │ App       │  │     │  │ App       │  │
-│  │ :3456     │  │     │  │ :3456     │  │     │  │ :3456     │  │
-│  └───────────┘  │     │  └───────────┘  │     │  └───────────┘  │
-└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │ HTTPS/WSS
-                                 ↓
-                    ┌─────────────────────────┐
-                    │    服务器集群            │
-                    │  ┌─────────────────┐   │
-                    │  │  Nginx / LB     │   │
-                    │  └────────┬────────┘   │
-                    │           │            │
-                    │  ┌────────┴────────┐   │
-                    │  │  Web 容器 x N   │   │
-                    │  │  (无状态)        │   │
-                    │  └─────────────────┘   │
-                    └─────────────────────────┘
+┌─────────────────────────┐         ┌─────────────────────────┐
+│      公网服务器          │         │        用户 Mac          │
+│  ┌───────────────────┐  │         │  ┌───────────────────┐  │
+│  │   Web 服务         │  │  HTTP   │  │   macOS 数据服务   │  │
+│  │   lark.app        │◄─┼─────────┼──┤   :3456           │  │
+│  │   (Docker)        │  │         │  │                   │  │
+│  └───────────────────┘  │         │  └───────────────────┘  │
+│           ↑             │         │                         │
+│      用户浏览器         │         │  ngrok/frp/VPN 暴露端口  │
+└─────────────────────────┘         └─────────────────────────┘
+
+DATA_API_URL=https://user1.ngrok.io (每个用户不同)
+```
+
+### 拓扑 C: 公司内网 Web + 本地数据
+
+```
+┌─────────────────────────┐         ┌─────────────────────────┐
+│      公司内网服务器       │         │        用户 Mac          │
+│  ┌───────────────────┐  │         │  ┌───────────────────┐  │
+│  │   Web 服务         │  │  HTTP   │  │   macOS 数据服务   │  │
+│  │   lark.local      │◄─┼─────────┼──┤   :3456           │  │
+│  │   (Docker)        │  │         │  │                   │  │
+│  └───────────────────┘  │         │  └───────────────────┘  │
+│           ↑             │         │                         │
+│      员工浏览器         │         │  同一内网/VPN           │
+└─────────────────────────┘         └─────────────────────────┘
+
+DATA_API_URL=http://user-mac.local:3456
+```
+
+### 拓扑 D: 多用户共享 Web
+
+```
+                         ┌─────────────────────────┐
+                         │      公网服务器          │
+                         │  ┌───────────────────┐  │
+                         │  │   Web 服务         │  │
+                         │  │   lark.app        │  │
+                         │  └───────────────────┘  │
+                         │           ↑             │
+                         └───────────┼─────────────┘
+                                     │
+              ┌──────────────────────┼──────────────────────┐
+              │                      │                      │
+              ↓ HTTP                 ↓ HTTP                 ↓ HTTP
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│   用户 1 Mac     │      │   用户 2 Mac     │      │   用户 3 Mac     │
+│  ┌───────────┐  │      │  ┌───────────┐  │      │  ┌───────────┐  │
+│  │ 数据服务   │  │      │  │ 数据服务   │  │      │  │ 数据服务   │  │
+│  │ :3456     │  │      │  │ :3456     │  │      │  │ :3456     │  │
+│  └───────────┘  │      │  └───────────┘  │      │  └───────────┘  │
+└─────────────────┘      └─────────────────┘      └─────────────────┘
+
+每个用户通过不同 URL 访问同一 Web，但连接自己的数据服务
+Web 前端可通过 localStorage 记住用户的 DATA_API_URL
 ```
 
 ---
 
 ## 4. 环境变量参考
 
-### Web 容器
+### Web 服务
 
 | 变量 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
-| `DATA_API_URL` | 是 | - | 数据层服务地址 |
+| `DATA_API_URL` | 是 | - | macOS 数据服务地址 |
 | `PORT` | 否 | 3000 | Web 服务端口 |
 | `NODE_ENV` | 否 | production | 运行环境 |
+| `WS_ENABLED` | 否 | true | 是否启用 WebSocket |
 
-### Go 数据层
+### macOS 数据服务
 
 | 变量/参数 | 必填 | 默认值 | 说明 |
 |-----------|------|--------|------|
 | `--port` / `LARK_RADAR_PORT` | 否 | 3456 | HTTP 端口 |
 | `--data-dir` / `LARK_RADAR_DATA_DIR` | 否 | ~/.lark-radar | 数据目录 |
 | `--log-level` | 否 | info | 日志级别 |
+| `--cors-origins` | 否 | * | CORS 允许来源 |
 
 ---
 
-## 5. 升级流程
+## 5. 网络配置
 
-### 5.1 升级数据层
+### 5.1 本地开发
+
+```bash
+# Web 和数据都在本地
+# 数据服务监听 127.0.0.1:3456（默认）
+# Web 通过 host.docker.internal 访问
+```
+
+### 5.2 公网访问（用户 Mac 暴露端口）
+
+```bash
+# 方式 1: ngrok
+ngrok http 3456
+# 获得 https://xxx.ngrok.io
+
+# 方式 2: frp（自建穿透）
+# frpc.ini
+[radar]
+type = http
+local_port = 3456
+custom_domain = user1.radar.company.com
+
+# 方式 3: 路由器端口转发
+# 公网 IP:3456 → 内网 Mac:3456
+```
+
+### 5.3 VPN/内网
+
+```bash
+# 用户 Mac 加入公司 VPN
+# 获得固定内网 IP: 10.0.x.x
+# Web 服务器通过内网 IP 访问
+```
+
+---
+
+## 6. 升级流程
+
+### 6.1 升级 macOS 数据服务
 
 ```bash
 # 1. 停止旧版本
-# 菜单栏选择「退出」或 kill 进程
+# 菜单栏选择「退出」
 
 # 2. 备份数据
 cp -r ~/.lark-radar ~/.lark-radar.backup
 
-# 3. 替换二进制
+# 3. 替换 app
 # 下载新版本 LarkRadar.app，覆盖安装
 
 # 4. 启动新版本
-# 菜单栏点击启动，自动迁移数据库
+# 菜单栏点击启动
 ```
 
-### 5.2 升级 Web 层
+### 6.2 升级 Web 服务
 
 ```bash
 # 1. 拉取新镜像
@@ -308,41 +407,49 @@ docker pull lark-radar-web:latest
 # 2. 重启容器
 docker-compose down
 docker-compose up -d
-
-# 或单容器
-docker stop lark-radar-web
-docker rm lark-radar-web
-docker run -d ... lark-radar-web:latest
 ```
 
-### 5.3 回滚
+### 6.3 回滚
 
 ```bash
-# 数据层：恢复备份
+# 数据服务：恢复备份
 cp -r ~/.lark-radar.backup ~/.lark-radar
 
-# Web 层：使用旧镜像标签
+# Web 服务：使用旧镜像
 docker run -d ... lark-radar-web:1.0.0
 ```
 
 ---
 
-## 6. 故障排查
+## 7. 故障排查
 
-### 6.1 Web 无法连接数据层
+### 7.1 Web 无法连接数据服务
 
 ```bash
-# 检查数据层是否运行
+# 从 Web 服务器测试连通性
+curl $DATA_API_URL/health
+
+# 检查数据服务是否运行（用户 Mac）
 curl http://localhost:3456/health
 
-# 检查 Web 容器网络
-docker exec lark-radar-web wget -qO- http://host.docker.internal:3456/health
+# 检查网络连通性
+ping user-mac-ip
 
-# Linux 需确保数据层监听 0.0.0.0
-# macOS 确保使用 host.docker.internal
+# 检查防火墙
+# macOS: 系统设置 → 网络 → 防火墙
 ```
 
-### 6.2 数据层无法启动
+### 7.2 跨域错误
+
+```bash
+# 检查数据服务 CORS 配置
+curl -H "Origin: https://lark.app" \
+  -I http://user-mac:3456/api/stats
+
+# 应返回 Access-Control-Allow-Origin: *
+```
+
+### 7.3 数据服务无法启动
 
 ```bash
 # 检查端口占用
@@ -355,40 +462,30 @@ ls -la ~/.lark-radar
 ./lark-radar-server 2>&1 | tee server.log
 ```
 
-### 6.3 lark-cli 未认证
-
-```bash
-# 在 macOS 终端执行
-lark-cli auth login --as user
-lark-cli doctor
-```
-
 ---
 
-## 7. 性能调优
+## 8. 性能调优
 
-### 7.1 Go 数据层
+### 8.1 Go 数据服务
 
 ```bash
-# 设置 GOMAXPROCS（容器内）
+# 设置 GOMAXPROCS
 export GOMAXPROCS=4
 
-# 限制内存（systemd/cgroup）
+# 限制内存
 # 建议：512MB 足够
 ```
 
-### 7.2 Web 容器
+### 8.2 Web 服务
 
 ```bash
 # 限制资源
 docker run -m 512m --cpus=1 ...
 
-# 使用缓存层（CDN）
-# 静态资源缓存 1 年
+# 使用 CDN 缓存静态资源
 ```
 
-### 7.3 数据库
+### 8.3 数据库
 
 - WAL 模式已默认启用
 - 定期 VACUUM（每月一次）
-- 大数据量时考虑分表（按日期）
