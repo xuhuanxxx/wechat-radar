@@ -22,12 +22,12 @@ type Engine struct {
 
 // SyncStatus tracks current sync state
 type SyncStatus struct {
-	Running   bool                  `json:"running"`
-	StartedAt time.Time             `json:"started_at,omitempty"`
-	CompletedAt time.Time           `json:"completed_at,omitempty"`
-	Progress  map[string]int        `json:"progress"`
-	Results   map[string]models.SyncResult `json:"results,omitempty"`
-	Error     string                `json:"error,omitempty"`
+	Running     bool                      `json:"running"`
+	StartedAt   time.Time                 `json:"started_at,omitempty"`
+	CompletedAt time.Time                 `json:"completed_at,omitempty"`
+	Progress    map[string]int            `json:"progress"`
+	Results     map[string]models.SyncResult `json:"results,omitempty"`
+	Error       string                    `json:"error,omitempty"`
 }
 
 // NewEngine creates a new sync engine
@@ -44,7 +44,7 @@ func NewEngine(database *db.DB, config *db.ConfigManager) *Engine {
 
 // CheckLarkCLI verifies lark-cli is available
 func (e *Engine) CheckLarkCLI() error {
-	cmd := exec.Command("lark", "--version")
+	cmd := exec.Command("lark-cli", "--version")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("lark-cli not found: %w", err)
 	}
@@ -53,7 +53,7 @@ func (e *Engine) CheckLarkCLI() error {
 
 // CheckLarkAuth verifies lark-cli authentication
 func (e *Engine) CheckLarkAuth() error {
-	cmd := exec.Command("lark", "doctor", "--json")
+	cmd := exec.Command("lark-cli", "doctor")
 	output, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("lark doctor failed: %w", err)
@@ -195,14 +195,27 @@ func (e *Engine) SyncAll(daysBack int) (map[string]models.SyncResult, error) {
 	return results, nil
 }
 
+// NewChatListResponse represents the new lark-cli +chat-list output
+type NewChatListResponse struct {
+	OK       bool                `json:"ok"`
+	Identity string              `json:"identity,omitempty"`
+	Data     *NewChatListData    `json:"data,omitempty"`
+	Error    *models.LarkError   `json:"error,omitempty"`
+}
+
+type NewChatListData struct {
+	Chats   []models.LarkChat `json:"chats,omitempty"`
+	HasMore bool              `json:"has_more,omitempty"`
+}
+
 func (e *Engine) fetchChats() ([]models.LarkChat, error) {
-	cmd := exec.Command("lark", "im", "chat", "list", "--format", "json")
+	cmd := exec.Command("lark-cli", "im", "+chat-list", "--json")
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("lark im chat list failed: %w", err)
+		return nil, fmt.Errorf("lark im +chat-list failed: %w", err)
 	}
 
-	var resp models.LarkChatListResponse
+	var resp NewChatListResponse
 	if err := json.Unmarshal(output, &resp); err != nil {
 		return nil, fmt.Errorf("parse chat list: %w", err)
 	}
@@ -213,10 +226,8 @@ func (e *Engine) fetchChats() ([]models.LarkChat, error) {
 
 	var chats []models.LarkChat
 	if resp.Data != nil {
-		chats = append(chats, resp.Data.Items...)
-		chats = append(chats, resp.Data.Chats...)
+		chats = resp.Data.Chats
 	}
-	chats = append(chats, resp.Chats...)
 
 	// Apply filter
 	cfg, _ := e.config.Load()
@@ -259,20 +270,34 @@ func (e *Engine) FetchChats() ([]models.LarkChat, error) {
 	return e.fetchChats()
 }
 
+// NewMessagesResponse represents the new lark-cli +chat-messages-list output
+type NewMessagesResponse struct {
+	OK       bool                 `json:"ok"`
+	Identity string               `json:"identity,omitempty"`
+	Data     *NewMessagesData     `json:"data,omitempty"`
+	Error    *models.LarkError    `json:"error,omitempty"`
+}
+
+type NewMessagesData struct {
+	Messages  []models.LarkMessage `json:"messages,omitempty"`
+	HasMore   bool                 `json:"has_more,omitempty"`
+	PageToken string               `json:"page_token,omitempty"`
+}
+
 func (e *Engine) doSyncChat(chatID string, daysBack int) (models.SyncResult, error) {
 	result := models.SyncResult{}
 
 	// Calculate start time
 	startTime := time.Now().AddDate(0, 0, -daysBack).Unix()
 
-	// Fetch messages from lark-cli
-	cmd := exec.Command("lark", "im", "message", "list", "--chat-id", chatID, "--format", "json")
+	// Fetch messages from lark-cli using new shortcut format
+	cmd := exec.Command("lark-cli", "im", "+chat-messages-list", "--chat-id", chatID, "--json")
 	output, err := cmd.Output()
 	if err != nil {
 		return result, fmt.Errorf("fetch messages: %w", err)
 	}
 
-	var resp models.LarkMessagesResponse
+	var resp NewMessagesResponse
 	if err := json.Unmarshal(output, &resp); err != nil {
 		return result, fmt.Errorf("parse messages: %w", err)
 	}
@@ -283,10 +308,8 @@ func (e *Engine) doSyncChat(chatID string, daysBack int) (models.SyncResult, err
 
 	var messages []models.LarkMessage
 	if resp.Data != nil {
-		messages = append(messages, resp.Data.Items...)
-		messages = append(messages, resp.Data.Messages...)
+		messages = resp.Data.Messages
 	}
-	messages = append(messages, resp.Messages...)
 
 	// Filter by time and insert
 	tx, err := e.db.Begin()
@@ -352,15 +375,29 @@ func (e *Engine) doSyncChat(chatID string, daysBack int) (models.SyncResult, err
 }
 
 func (e *Engine) updateGroupInfo(chatID string) {
-	// Try to get chat info from lark
-	cmd := exec.Command("lark", "im", "chat", "get", "--chat-id", chatID, "--format", "json")
+	// Try to get chat info from lark using generic API
+	cmd := exec.Command("lark-cli", "api", "GET", "/open-apis/im/v1/chats/"+chatID, "--json")
 	output, err := cmd.Output()
 	if err != nil {
 		return
 	}
 
-	var chat models.LarkChat
-	if err := json.Unmarshal(output, &chat); err != nil {
+	var resp struct {
+		Code int `json:"code"`
+		Data struct {
+			Avatar      string `json:"avatar"`
+			ChatID      string `json:"chat_id"`
+			ChatMode    string `json:"chat_mode"`
+			Description string `json:"description"`
+			Name        string `json:"name"`
+			OwnerID     string `json:"owner_id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(output, &resp); err != nil {
+		return
+	}
+
+	if resp.Data.ChatID == "" {
 		return
 	}
 
@@ -370,13 +407,26 @@ func (e *Engine) updateGroupInfo(chatID string) {
 		ON CONFLICT(chatroom_id) DO UPDATE SET
 			name = excluded.name,
 			member_count = excluded.member_count
-	`, chatID, chat.Name, chat.MemberCount)
+	`, chatID, resp.Data.Name, 0)
 }
 
 func parseMessageTime(msg models.LarkMessage) int64 {
+	// New lark-cli returns create_time as string like "2026-06-10 11:56"
 	if msg.CreateTime != "" {
-		if ts, err := parseInt(msg.CreateTime); err == nil {
-			return ts / 1000 // Lark uses milliseconds
+		// Try parsing as ISO/RFC3339 or custom format
+		formats := []string{
+			time.RFC3339,
+			"2006-01-02 15:04",
+			"2006-01-02 15:04:05",
+		}
+		for _, f := range formats {
+			if t, err := time.Parse(f, msg.CreateTime); err == nil {
+				return t.Unix()
+			}
+		}
+		// Try as timestamp (milliseconds)
+		if ts, err := parseInt(msg.CreateTime); err == nil && ts > 1000000000000 {
+			return ts / 1000
 		}
 	}
 	if msg.CreateTimeAlt != "" {

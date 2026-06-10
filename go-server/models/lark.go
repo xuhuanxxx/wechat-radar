@@ -47,15 +47,9 @@ type LarkMessageBody struct {
 // LarkMention represents a mention in a message
 type LarkMention struct {
 	Key         string `json:"key"`
-	ID          LarkMentionID `json:"id"`
+	ID          string `json:"id"`
 	Name        string `json:"name"`
 	TenantKey   string `json:"tenant_key,omitempty"`
-}
-
-// LarkMentionID represents the mention ID
-type LarkMentionID struct {
-	OpenID string `json:"open_id"`
-	UserID string `json:"user_id,omitempty"`
 }
 
 // LarkChatListResponse represents the chat list API response

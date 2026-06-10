@@ -196,7 +196,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: goBinaryPath)
         task.arguments = ["--port", "\(serverPort)", "--data-dir", dataDir]
+        
+        // Get full PATH from user's shell (macOS app launched from Finder has minimal PATH)
+        let shellPath = getShellPath()
+        let extendedPath = "/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:" + shellPath
+        
         task.environment = [
+            "PATH": extendedPath,
+            "HOME": NSHomeDirectory(),
             "LARK_RADAR_DATA_DIR": dataDir,
             "LARK_RADAR_PORT": "\(serverPort)"
         ]
@@ -413,6 +420,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         alert.messageText = message
         alert.alertStyle = .critical
         alert.runModal()
+    }
+    
+    /// Get the user's shell PATH by running their login shell.
+    /// macOS apps launched from Finder inherit a minimal PATH.
+    private func getShellPath() -> String {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-lc", "echo $PATH"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        do {
+            try task.run()
+            task.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let path = String(data: data, encoding: .utf8) {
+                return path.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        } catch {
+            print("Failed to get shell PATH: \(error)")
+        }
+        return "/usr/bin:/bin:/usr/sbin:/sbin"
     }
     
     func findAvailablePort(startingAt port: Int) -> Int {
