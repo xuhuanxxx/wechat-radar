@@ -84,3 +84,14 @@ func (cm *ConfigManager) IsConfigured() bool {
 	}
 	return len(cfg.MyNicknames) > 0
 }
+
+// DataDir returns the directory containing the config file
+func (cm *ConfigManager) DataDir() string {
+	// Extract directory from path
+	for i := len(cm.path) - 1; i >= 0; i-- {
+		if cm.path[i] == '/' || cm.path[i] == '\\' {
+			return cm.path[:i]
+		}
+	}
+	return "."
+}

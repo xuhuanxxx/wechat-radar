@@ -51,6 +51,39 @@ func (e *Engine) CheckLarkCLI() error {
 	return nil
 }
 
+// CheckLarkAuth verifies lark-cli authentication
+func (e *Engine) CheckLarkAuth() error {
+	cmd := exec.Command("lark", "doctor", "--json")
+	output, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("lark doctor failed: %w", err)
+	}
+
+	var result struct {
+		OK     bool `json:"ok"`
+		Checks []struct {
+			Name    string `json:"name"`
+			Status  string `json:"status"`
+			Message string `json:"message,omitempty"`
+		} `json:"checks,omitempty"`
+	}
+	if err := json.Unmarshal(output, &result); err != nil {
+		return fmt.Errorf("parse doctor output: %w", err)
+	}
+
+	if !result.OK {
+		return fmt.Errorf("lark doctor: not ok")
+	}
+
+	for _, c := range result.Checks {
+		if c.Name == "user_identity" && c.Status != "pass" {
+			return fmt.Errorf("lark not authenticated: %s", c.Message)
+		}
+	}
+
+	return nil
+}
+
 // GetStatus returns current sync status
 func (e *Engine) GetStatus() *SyncStatus {
 	e.mu.RLock()

@@ -72,7 +72,6 @@ func main() {
 	mux.HandleFunc("/api/doctor", h.Doctor)
 
 	// Setup
-	mux.HandleFunc("/api/setup/status", h.SetupStatus)
 	mux.HandleFunc("/api/setup", h.Setup)
 	mux.HandleFunc("/api/config", h.GetConfig)
 

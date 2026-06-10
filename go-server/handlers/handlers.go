@@ -140,13 +140,27 @@ func (h *Handlers) Doctor(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// SetupStatus returns setup status
-func (h *Handlers) SetupStatus(w http.ResponseWriter, r *http.Request) {
+// Setup handles /api/setup (GET returns status, POST saves config)
+func (h *Handlers) Setup(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		h.setupGet(w, r)
+	case http.MethodPost:
+		h.setupPost(w, r)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "Method not allowed")
+	}
+}
+
+func (h *Handlers) setupGet(w http.ResponseWriter, r *http.Request) {
 	cfg, err := h.config.Load()
 	if err != nil {
 		writeJSON(w, http.StatusOK, models.SetupStatus{
 			OK:         false,
+			DataDir:    h.config.DataDir(),
 			Configured: false,
+			Config:     models.Config{},
+			Checks:     h.runChecks(),
 			Error:      err.Error(),
 		})
 		return
@@ -154,17 +168,32 @@ func (h *Handlers) SetupStatus(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, models.SetupStatus{
 		OK:         true,
+		DataDir:    h.config.DataDir(),
 		Configured: len(cfg.MyNicknames) > 0,
+		Config:     *cfg,
+		Checks:     h.runChecks(),
 	})
 }
 
-// Setup handles initial setup
-func (h *Handlers) Setup(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
+// runChecks runs environment checks for the setup page
+func (h *Handlers) runChecks() models.SetupChecks {
+	checks := models.SetupChecks{}
+
+	// Check lark-cli availability
+	if err := h.syncEngine.CheckLarkCLI(); err != nil {
+		checks.LarkError = err.Error()
+	} else {
+		checks.LarkInstalled = true
+		// Check authentication
+		if h.syncEngine.CheckLarkAuth() == nil {
+			checks.LarkAuthenticated = true
+		}
 	}
 
+	return checks
+}
+
+func (h *Handlers) setupPost(w http.ResponseWriter, r *http.Request) {
 	var req models.SetupRequest
 	if err := parseJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid JSON")
@@ -182,6 +211,13 @@ func (h *Handlers) Setup(w http.ResponseWriter, r *http.Request) {
 		Port:             req.Port,
 		AutoSyncInterval: req.AutoSyncInterval,
 		LarkChatFilter:   req.LarkChatFilter,
+		DemoMode:         req.DemoMode,
+		PrivacyConfirmed: req.PrivacyConfirmed,
+		DefaultSyncDays:  req.DefaultSyncDays,
+		Source:           req.Source,
+		LarkCliPath:      req.LarkCliPath,
+		OpenApiKey:       req.OpenApiKey,
+		SetupCompleted:   true,
 	}
 
 	if cfg.DefaultRange == "" {
@@ -190,6 +226,9 @@ func (h *Handlers) Setup(w http.ResponseWriter, r *http.Request) {
 	if cfg.Port == 0 {
 		cfg.Port = 8787
 	}
+	if cfg.DefaultSyncDays == 0 {
+		cfg.DefaultSyncDays = 7
+	}
 
 	if err := h.config.Save(cfg); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -197,8 +236,9 @@ func (h *Handlers) Setup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, models.SetupResponse{
-		OK:      true,
-		Message: "Setup complete",
+		OK:         true,
+		Configured: true,
+		Message:    "Setup complete",
 	})
 }
 
