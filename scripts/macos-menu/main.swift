@@ -30,33 +30,53 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.title = "📡"
         
+        // Enable right-click by adding a target/action to the button
+        if let button = statusItem.button {
+            button.target = self
+            button.action = #selector(statusItemClicked(_:))
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        }
+        
+        buildMenu()
+    }
+    
+    private func buildMenu() {
         let menu = NSMenu()
         
         let titleItem = NSMenuItem(title: "Lark Radar", action: nil, keyEquivalent: "")
         titleItem.isEnabled = false
         menu.addItem(titleItem)
         
-        let statusItem = NSMenuItem(title: "Status: Stopped", action: nil, keyEquivalent: "")
-        statusItem.tag = 1
-        statusItem.isEnabled = false
-        menu.addItem(statusItem)
+        let statusMenuItem = NSMenuItem(title: "Status: Stopped", action: nil, keyEquivalent: "")
+        statusMenuItem.tag = 1
+        statusMenuItem.isEnabled = false
+        menu.addItem(statusMenuItem)
         
         menu.addItem(NSMenuItem.separator())
         
-        let syncItem = NSMenuItem(title: "Sync Now", action: #selector(triggerSync), keyEquivalent: "s")
+        let syncItem = NSMenuItem(title: "🔄  Sync Now", action: #selector(triggerSync), keyEquivalent: "s")
         syncItem.tag = 2
         menu.addItem(syncItem)
         
-        let toggleItem = NSMenuItem(title: "Start Server", action: #selector(toggleServer), keyEquivalent: "t")
+        let toggleItem = NSMenuItem(title: "▶️  Start Server", action: #selector(toggleServer), keyEquivalent: "t")
         toggleItem.tag = 100
         menu.addItem(toggleItem)
         
         menu.addItem(NSMenuItem.separator())
         
-        let dataDirItem = NSMenuItem(title: "Open Data Directory", action: #selector(openDataDirectory), keyEquivalent: "d")
+        // Quick links section
+        let linksItem = NSMenuItem(title: "Quick Links", action: nil, keyEquivalent: "")
+        linksItem.isEnabled = false
+        menu.addItem(linksItem)
+        
+        let dashboardItem = NSMenuItem(title: "📊  Open Dashboard...", action: #selector(openDashboard), keyEquivalent: "o")
+        dashboardItem.tag = 3
+        menu.addItem(dashboardItem)
+        
+        let dataDirItem = NSMenuItem(title: "📁  Open Data Directory", action: #selector(openDataDirectory), keyEquivalent: "d")
         menu.addItem(dataDirItem)
         
-        let logsItem = NSMenuItem(title: "Open Logs", action: #selector(openLogs), keyEquivalent: "l")
+        let logsItem = NSMenuItem(title: "📋  Open Logs", action: #selector(openLogs), keyEquivalent: "l")
         menu.addItem(logsItem)
         
         menu.addItem(NSMenuItem.separator())
@@ -65,6 +85,63 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(quitItem)
         
         statusItem.menu = menu
+    }
+    
+    @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
+        guard let event = NSApp.currentEvent else { return }
+        
+        if event.type == .rightMouseUp {
+            // Right-click: show context menu without left-click menu
+            showContextMenu()
+        } else {
+            // Left-click: show normal menu
+            statusItem.button?.performClick(nil)
+        }
+    }
+    
+    private func showContextMenu() {
+        let menu = NSMenu()
+        
+        // Status header
+        let statusHeader = NSMenuItem(title: isRunning ? "🟢 Running on :\(serverPort)" : "⚫ Stopped", action: nil, keyEquivalent: "")
+        statusHeader.isEnabled = false
+        menu.addItem(statusHeader)
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        // Quick actions
+        if isRunning {
+            let syncItem = NSMenuItem(title: "🔄 Sync Now", action: #selector(triggerSync), keyEquivalent: "")
+            menu.addItem(syncItem)
+            
+            let dashboardItem = NSMenuItem(title: "📊 Dashboard", action: #selector(openDashboard), keyEquivalent: "")
+            menu.addItem(dashboardItem)
+            
+            let stopItem = NSMenuItem(title: "⏹  Stop Server", action: #selector(toggleServer), keyEquivalent: "")
+            menu.addItem(stopItem)
+        } else {
+            let startItem = NSMenuItem(title: "▶️  Start Server", action: #selector(toggleServer), keyEquivalent: "")
+            menu.addItem(startItem)
+        }
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        // Utility actions
+        let dataDirItem = NSMenuItem(title: "📁 Data Directory", action: #selector(openDataDirectory), keyEquivalent: "")
+        menu.addItem(dataDirItem)
+        
+        let logsItem = NSMenuItem(title: "📋 Logs", action: #selector(openLogs), keyEquivalent: "")
+        menu.addItem(logsItem)
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "")
+        menu.addItem(quitItem)
+        
+        // Show menu at status item location
+        if let button = statusItem.button {
+            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
+        }
     }
     
     private func updateMenu() {
@@ -77,11 +154,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         if let toggleItem = menu.item(withTag: 100) {
-            toggleItem.title = isRunning ? "Stop Server" : "Start Server"
+            toggleItem.title = isRunning ? "⏹  Stop Server" : "▶️  Start Server"
         }
         
         if let syncItem = menu.item(withTag: 2) {
             syncItem.isEnabled = isRunning
+        }
+        
+        if let dashboardItem = menu.item(withTag: 3) {
+            dashboardItem.isEnabled = isRunning
         }
         
         statusItem.button?.title = isRunning ? "🟢" : "📡"
@@ -307,6 +388,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func openLogs() {
         let logPath = NSHomeDirectory() + "/.lark-radar/server.log"
         let url = URL(fileURLWithPath: logPath)
+        NSWorkspace.shared.open(url)
+    }
+    
+    @objc func openDashboard() {
+        guard isRunning else {
+            showAlert(message: "Data service is not running.")
+            return
+        }
+        let url = URL(string: "http://localhost:\(serverPort)")!
         NSWorkspace.shared.open(url)
     }
     
