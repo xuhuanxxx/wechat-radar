@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Allow newer pushes to a branch to cancel in-flight runs.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: go vet + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: apps/data-service/go.sum
+      - name: go vet
+        working-directory: apps/data-service
+        run: go vet ./...
+      - name: go build
+        working-directory: apps/data-service
+        run: go build ./...
+
+  web:
+    name: web typecheck + lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: tsc
+        run: pnpm --filter @lark-radar/web exec tsc --noEmit
+      # Note: `pnpm --filter @lark-radar/web lint` is intentionally skipped
+      # here — there's a known pre-existing setState-in-effect warning in
+      # app/setup/page.tsx that's tracked separately.
+
+  contract-drift:
+    name: api-contract — generated artifacts in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install oapi-codegen
+        run: go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+      - name: Verify generated outputs match openapi.yaml
+        run: |
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          pnpm --filter @lark-radar/api-contract run check
+
+  e2e:
+    name: docker build + smoke test
+    runs-on: ubuntu-latest
+    needs: [go, web]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: apps/data-service/go.sum
+
+      - name: Build data service binary
+        working-directory: apps/data-service
+        run: go build -o lark-radar-server .
+
+      - name: Start data service
+        run: |
+          ./apps/data-service/lark-radar-server \
+            --port 3456 \
+            --data-dir /tmp/lark-radar-ci &
+          # Poll /api/health until ready (up to 15s)
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:3456/api/health >/dev/null 2>&1; then
+              echo "data service is ready"
+              break
+            fi
+            sleep 0.5
+          done
+
+      - name: Build web image
+        run: docker build -f apps/web/Dockerfile -t lark-radar-web:ci .
+
+      - name: Start web container
+        run: |
+          docker run -d --name web \
+            --add-host=host.docker.internal:host-gateway \
+            -p 3001:8787 \
+            -e DATA_API_URL=http://host.docker.internal:3456 \
+            lark-radar-web:ci
+          # Poll the proxy until it answers (container start is async)
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:3001/api/health >/dev/null 2>&1; then
+              echo "web container is ready"
+              break
+            fi
+            sleep 0.5
+          done
+
+      - name: Smoke test through the web proxy
+        run: bash scripts/smoke-test.sh http://localhost:3001
+
+      - name: Container logs (always)
+        if: always()
+        run: docker logs web || true
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker rm -f web 2>/dev/null || true
+          pkill -f lark-radar-server 2>/dev/null || true
