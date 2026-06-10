@@ -9,7 +9,30 @@
  *
  * This ensures the web frontend never directly accesses data services
  * and works correctly in containerized deployments.
+ *
+ * For response typing, prefer the generated contract over inline literals:
+ *
+ *   import type { Schemas } from '@/lib/api-client';
+ *   const data = await apiGet<Schemas['StatsResponse']>('/api/stats?range=week');
+ *
+ * `Schemas` is sourced from packages/api-contract/openapi.yaml.
  */
+
+import type { components, paths } from '@lark-radar/api-contract';
+
+/**
+ * Map of every named schema in openapi.yaml. The single source of truth
+ * for request/response shapes.
+ *
+ *   type StatsResponse = Schemas['StatsResponse'];
+ */
+export type Schemas = components['schemas'];
+
+/**
+ * Map of every path defined in openapi.yaml. Re-exported for advanced
+ * callers that want to derive shapes by path/method.
+ */
+export type Paths = paths;
 
 const STORAGE_KEY = 'lark-radar-data-url';
 
