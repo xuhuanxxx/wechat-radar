@@ -1,0 +1,21 @@
+{
+  "name": "@lark-radar/api-contract",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Single source of truth for the lark-radar HTTP API. Generates TypeScript types for apps/web and Go types for apps/data-service.",
+  "types": "./generated/types.d.ts",
+  "exports": {
+    ".": {
+      "types": "./generated/types.d.ts"
+    }
+  },
+  "scripts": {
+    "generate": "./scripts/generate.sh",
+    "generate:ts": "openapi-typescript openapi.yaml -o generated/types.d.ts",
+    "generate:go": "oapi-codegen --config oapi-codegen.yaml openapi.yaml",
+    "check": "./scripts/check.sh"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.5.0"
+  }
+}
