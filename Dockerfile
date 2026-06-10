@@ -49,6 +49,9 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD node -e "const p=process.env.PORT||8787;require('http').get('http://localhost:'+p+'/api/health',(r)=>r.statusCode===200?process.exit(0):process.exit(1))"
 
 # Start the standalone server
+# Default data service URL (override at runtime with -e DATA_API_URL=...)
+ENV DATA_API_URL=""
+
 ENV PORT=8787
 ENV HOSTNAME="0.0.0.0"
 CMD ["node", "server.js"]

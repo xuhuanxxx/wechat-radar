@@ -12,8 +12,12 @@ const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'];
  * This enables the web frontend to work even when the data service runs
  * on a different origin and direct CORS calls are blocked.
  */
+// Default data service URL from environment (set at container build/run time)
+const DEFAULT_DATA_API_URL = process.env.DATA_API_URL || '';
+
 async function proxyRequest(req: NextRequest, method: string) {
-  const dataApiUrl = req.headers.get('x-data-api-url');
+  // Priority: request header > environment variable
+  const dataApiUrl = req.headers.get('x-data-api-url') || DEFAULT_DATA_API_URL;
 
   if (!dataApiUrl) {
     return NextResponse.json(
