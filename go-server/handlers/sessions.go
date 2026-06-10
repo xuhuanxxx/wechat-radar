@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"go-server/models"
 )
@@ -35,23 +37,54 @@ func (h *Handlers) Sessions(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	sessions := []models.Session{}
+	groups := []models.SessionGroup{}
 	for rows.Next() {
-		var s models.Session
+		var chatroomID, name string
+		var messageCount int
 		var lastActive sql.NullInt64
-		if err := rows.Scan(&s.ChatroomID, &s.Name, &s.MessageCount, &lastActive, &s.UniqueSenders); err != nil {
+		var uniqueSenders int
+		if err := rows.Scan(&chatroomID, &name, &messageCount, &lastActive, &uniqueSenders); err != nil {
 			continue
 		}
+		
+		var ts int64
 		if lastActive.Valid {
-			s.LastActive = lastActive.Int64
+			ts = lastActive.Int64
 		}
-		sessions = append(sessions, s)
+		
+		groups = append(groups, models.SessionGroup{
+			ChatroomID: chatroomID,
+			Name:       name,
+			Summary:    fmt.Sprintf("%d 条消息 · %d 人参与", messageCount, uniqueSenders),
+			Time:       formatTime(ts),
+			Timestamp:  ts,
+			Unread:     0,
+			IsFavorite: false,
+			GroupIDs:   []int{},
+		})
 	}
 
 	writeJSON(w, http.StatusOK, models.SessionsResponse{
-		OK:       true,
-		Sessions: sessions,
+		OK:         true,
+		Total:      len(groups),
+		Groups:     groups,
+		Categories: []models.CategoryInfo{},
 	})
+}
+
+func formatTime(ts int64) string {
+	if ts == 0 {
+		return ""
+	}
+	t := time.Unix(ts, 0)
+	now := time.Now()
+	if t.Year() == now.Year() && t.YearDay() == now.YearDay() {
+		return t.Format("15:04")
+	}
+	if t.Year() == now.Year() {
+		return t.Format("01-02")
+	}
+	return t.Format("2006-01-02")
 }
 
 // SessionDetail returns details for a specific chatroom

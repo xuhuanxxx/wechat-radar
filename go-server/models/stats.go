@@ -83,34 +83,30 @@ type SidebarCounts struct {
 	Unsorted  int `json:"unsorted"`
 }
 
-// SessionsResponse represents the sessions API response
+// SessionsResponse represents the sessions API response (matches web frontend)
 type SessionsResponse struct {
 	OK         bool           `json:"ok"`
 	Total      int            `json:"total"`
-	Sessions   []Session      `json:"sessions"`
 	Groups     []SessionGroup `json:"groups"`
 	Categories []CategoryInfo `json:"categories"`
 }
 
-// SessionGroup represents a group in sessions response
+// SessionGroup represents a group in sessions response (matches web frontend Group type)
 type SessionGroup struct {
 	ChatroomID string `json:"chatroom_id"`
 	Name       string `json:"name"`
-	LastMsgType string `json:"last_msg_type"`
-	LastSender  string `json:"last_sender"`
-	Summary     string `json:"summary"`
-	Time        string `json:"time"`
-	Timestamp   int64  `json:"timestamp"`
-	Unread      int    `json:"unread"`
-	IsFavorite  bool   `json:"is_favorite"`
-	GroupIDs    []int  `json:"group_ids"`
+	Summary    string `json:"summary"`
+	Time       string `json:"time"`
+	Timestamp  int64  `json:"timestamp"`
+	Unread     int    `json:"unread"`
+	IsFavorite bool   `json:"is_favorite"`
+	GroupIDs   []int  `json:"group_ids"`
 }
 
 // CategoryInfo represents category information
 type CategoryInfo struct {
-	ID           int    `json:"id"`
-	Name         string `json:"name"`
-	Color        string `json:"color"`
-	Emoji        string `json:"emoji"`
-	MemberCount  int    `json:"member_count"`
+	ID    int    `json:"id"`
+	Name  string `json:"name"`
+	Color string `json:"color"`
+	Emoji string `json:"emoji"`
 }
