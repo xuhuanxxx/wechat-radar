@@ -1,6 +1,6 @@
-WeChat Radar Non-Commercial Research License
+Lark Radar Non-Commercial Research License
 
-Copyright (c) 2026 WeChat Radar contributors
+Copyright (c) 2026 Lark Radar contributors
 
 This project is source-available for learning, research, personal evaluation,
 and non-commercial experimentation only.
@@ -21,20 +21,20 @@ You may not use this software, in whole or in part, for:
 - commercial services, paid products, consulting delivery, SaaS, hosted
   dashboards, paid reports, resale, lead generation, or other revenue-generating
   activity;
-- monitoring, scraping, profiling, exporting, or analyzing third-party WeChat
+- monitoring, scraping, profiling, exporting, or analyzing third-party Lark
   data without proper authorization;
-- automated WeChat actions, including but not limited to sending messages,
-  adding friends, joining groups, liking, commenting, reading or operating on
-  Moments, modifying profiles, or any other write/social action;
+- automated Lark actions, including but not limited to sending messages,
+  adding friends, joining groups, modifying profiles, or any other write/social
+  action;
 - evading platform restrictions, bypassing access controls, abusing accounts,
-  violating WeChat/Tencent rules, or interfering with any third-party service;
+  violating Lark/ByteDance rules, or interfering with any third-party service;
 - any unlawful, infringing, harassing, surveillance, spam, fraud, or privacy-
   violating activity.
 
-3. Tencent and WeChat disclaimer
+3. Lark and ByteDance disclaimer
 
 This project is not affiliated with, endorsed by, sponsored by, authorized by,
-or connected to Tencent, WeChat, or wx-cli. WeChat and Tencent trademarks belong
+or connected to Lark, ByteDance, or lark-cli. Lark and ByteDance trademarks belong
 to their respective owners. This project is an independent research tool.
 
 4. User responsibility
@@ -55,8 +55,8 @@ You are solely responsible for:
 THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY
 KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF
 MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT,
-AVAILABILITY, ACCURACY, SECURITY, OR COMPATIBILITY WITH ANY VERSION OF WECHAT,
-WX-CLI, NODE.JS, OPERATING SYSTEM, OR THIRD-PARTY SERVICE.
+AVAILABILITY, ACCURACY, SECURITY, OR COMPATIBILITY WITH ANY VERSION OF LARK,
+LARK-CLI, NODE.JS, OPERATING SYSTEM, OR THIRD-PARTY SERVICE.
 
 The authors do not guarantee that the software will work, remain compatible,
 avoid account restrictions, prevent data loss, produce correct summaries, or

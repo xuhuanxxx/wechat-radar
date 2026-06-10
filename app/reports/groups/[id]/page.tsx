@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { ArrowLeft, Check, Copy, ExternalLink, FileText, Link2, MessageSquare, Trophy } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 type Detail = {
   ok: boolean;
@@ -43,7 +44,7 @@ export default function GroupDailyReportPage({
     (async () => {
       setLoading(true);
       try {
-        const r = await fetch(`/api/group/${encodeURIComponent(chatroomId)}?date=${date}&limit=500`, {
+        const r = await apiFetch(`/api/group/${encodeURIComponent(chatroomId)}?date=${date}&limit=500`, {
           cache: 'no-store',
         });
         const j = (await r.json()) as Detail;
@@ -507,7 +508,7 @@ function stripUrls(content: string): string {
 }
 
 const MEANINGLESS_TITLE_RE =
-  /^(?:\[?链接\]?\s*)?(?:当前(?:微信)?版本不支持展示该内容，请升级至?最新(?:版|版本)|当前版本不支持|请升级至最新版本)[。.]?$/i;
+  /^(?:\[?链接\]?\s*)?(?:当前(?:客户端)?版本不支持展示该内容，请升级至?最新(?:版|版本)|当前版本不支持|请升级至最新版本)[。.]?$/i;
 
 const NOISE_URL_HOSTS = new Set([
   'support.weixin.qq.com',
@@ -519,8 +520,8 @@ const NOISE_URL_HOSTS = new Set([
 function meaningfulMessageText(content: string): string {
   const withoutUrls = stripUrls(content)
     .replace(/&amp;/g, '&')
-    .replace(/\[(?:链接|链接\/文件)\]\s*(?:当前(?:微信)?版本不支持展示该内容，请升级至?最新(?:版|版本)|当前版本不支持展示该内容，请升级至最新版本)[。.]?/gi, ' ')
-    .replace(/当前(?:微信)?版本不支持展示该内容，请升级至?最新(?:版|版本)[。.]?/gi, ' ')
+    .replace(/\[(?:链接|链接\/文件)\]\s*(?:当前(?:客户端)?版本不支持展示该内容，请升级至?最新(?:版|版本)|当前版本不支持展示该内容，请升级至最新版本)[。.]?/gi, ' ')
+    .replace(/当前(?:客户端)?版本不支持展示该内容，请升级至?最新(?:版|版本)[。.]?/gi, ' ')
     .replace(/\[图片\]\s*local_id=\d+/gi, ' ')
     .replace(/\b[a-f0-9]{24,}\b/gi, ' ')
     .replace(/\b\d{12,}\b/g, ' ')

@@ -551,7 +551,7 @@ function buildContentIdeas(
   const ideas: DashboardContentIdea[] = [];
   for (const topic of topics.slice(0, 4)) {
     ideas.push({
-      title: `${topic.title}：今天微信群里真正升温的信号`,
+      title: `${topic.title}：今天群聊里真正升温的信号`,
       angle: topic.status === 'spreading' ? '从跨群扩散解释为什么它值得关注' : '从真实讨论里提炼一个可执行判断',
       suggested_channel: topic.title.includes('工作流') || topic.title.includes('开源') ? '博客' : '公众号',
       evidence: topic.reason,

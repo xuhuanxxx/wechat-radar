@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { Calendar, ExternalLink, Newspaper, RefreshCw, Wrench } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 type LinkInsight = {
   kind: 'article' | 'tool';
@@ -33,7 +34,7 @@ type LinkInsightResp = {
   tools: LinkInsight[];
 };
 
-type RawWechatLink = {
+type RawLink = {
   chatroom_id: string;
   chat_name: string;
   local_id: number;
@@ -58,20 +59,20 @@ function localToday(): string {
 export default function LinksPage() {
   const [date, setDate] = useState(() => localToday());
   const [links, setLinks] = useState<LinkInsightResp | null>(null);
-  const [rawLinks, setRawLinks] = useState<RawWechatLink[]>([]);
+  const [rawLinks, setRawLinks] = useState<RawLink[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch(`/api/topics/links?date=${date}`);
+        const r = await apiFetch(`/api/topics/links?date=${date}`);
         const j = (await r.json()) as LinkInsightResp;
         if (!cancelled && j.ok) setLinks(j);
       } catch {}
       try {
-        const r = await fetch(`/api/message-links/raw?date=${date}`, { cache: 'no-store' });
-        const j = (await r.json()) as { ok: boolean; links?: RawWechatLink[] };
+        const r = await apiFetch(`/api/message-links/raw?date=${date}`, { cache: 'no-store' });
+        const j = (await r.json()) as { ok: boolean; links?: RawLink[] };
         if (!cancelled && j.ok) setRawLinks(j.links ?? []);
       } catch {}
     })();
@@ -85,7 +86,7 @@ export default function LinksPage() {
   async function refreshLinks() {
     setRefreshing(true);
     try {
-      const r = await fetch(`/api/topics/links?date=${date}&refresh=1`, { cache: 'no-store' });
+      const r = await apiFetch(`/api/topics/links?date=${date}&refresh=1`, { cache: 'no-store' });
       const j = (await r.json()) as LinkInsightResp;
       if (j.ok) setLinks(j);
     } finally {
@@ -150,20 +151,20 @@ export default function LinksPage() {
             loading={loading}
             empty="当天还没有工具链接"
           />
-          <RawWechatPanel date={date} items={loading ? [] : rawLinks} loading={loading} />
+          <RawLinkPanel date={date} items={loading ? [] : rawLinks} loading={loading} />
         </div>
       </main>
     </div>
   );
 }
 
-function RawWechatPanel({
+function RawLinkPanel({
   date,
   items,
   loading,
 }: {
   date: string;
-  items: RawWechatLink[];
+  items: RawLink[];
   loading: boolean;
 }) {
   return (
@@ -171,7 +172,7 @@ function RawWechatPanel({
       <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-3 py-2">
         <div className="flex items-center gap-2 text-[12px] font-semibold">
           <ExternalLink size={14} className="text-[var(--accent)]" />
-          <span>微信文章链接</span>
+          <span>外部文章链接</span>
         </div>
         <div className="text-[10px] text-[var(--text-3)]">{loading ? '加载中' : `${items.length} 条`}</div>
       </div>
@@ -179,7 +180,7 @@ function RawWechatPanel({
         {loading ? (
           <div className="py-16 text-center text-[11px] text-[var(--text-3)]">加载中…</div>
         ) : items.length === 0 ? (
-          <div className="py-16 text-center text-[11px] text-[var(--text-3)]">当天没有解析到微信文章链接</div>
+          <div className="py-16 text-center text-[11px] text-[var(--text-3)]">当天没有解析到外部文章链接</div>
         ) : (
           <div className="space-y-1.5">
             {items.map((item) => (

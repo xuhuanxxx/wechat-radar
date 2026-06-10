@@ -6,7 +6,7 @@ const { promisify } = require('node:util');
 const Database = require('better-sqlite3');
 
 const run = promisify(execFile);
-const DATA_DIR = process.env.WECHAT_RADAR_DATA_DIR || join(homedir(), '.wechat-radar');
+const DATA_DIR = process.env.LARK_RADAR_DATA_DIR || join(homedir(), '.lark-radar');
 const DB_PATH = join(DATA_DIR, 'radar.db');
 
 const SYSTEM_TYPES = new Set(['system', '系统']);

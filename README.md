@@ -1,7 +1,7 @@
-# WeChat Radar
+# Lark Radar
 
 > 群太多，真正有价值的消息却总是被淹没。
-> WeChat Radar turns noisy WeChat groups into a local-first intelligence dashboard.
+> Lark Radar turns noisy Lark groups into a local-first intelligence dashboard.
 
 [![GitHub stars](https://img.shields.io/github/stars/joeseesun/wechat-radar?style=social)](https://github.com/joeseesun/wechat-radar/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/joeseesun/wechat-radar?style=social)](https://github.com/joeseesun/wechat-radar/network/members)
@@ -9,7 +9,7 @@
 [![Last commit](https://img.shields.io/github/last-commit/joeseesun/wechat-radar)](https://github.com/joeseesun/wechat-radar/commits/main)
 [![License: Non-commercial research](https://img.shields.io/badge/License-Non--commercial%20research-orange.svg)](LICENSE)
 
-![WeChat Radar product preview](docs/assets/product-preview.svg)
+![Lark Radar product preview](docs/assets/product-preview.svg)
 
 **[中文](#中文) | [English](#english)**
 
@@ -21,9 +21,9 @@
 
 ## 中文
 
-WeChat Radar 是一个本地优先的微信群聊情报看板。它把群消息、话题、链接、@我的消息和高信号人物聚合成一个可按日期查看的工作台。
+Lark Radar 是一个本地优先的飞书群聊情报看板。它把群消息、话题、链接、@我的消息和高信号人物聚合成一个可按日期查看的工作台。
 
-你得到的不是“聊天记录列表”，而是每天可以直接处理的情报：
+你得到的不是"聊天记录列表"，而是每天可以直接处理的情报：
 
 - 今日优先看：消息、文章、工具、异动分区展示
 - 话题雷达：用 Codex CLI 按天聚合跨群话题
@@ -42,24 +42,22 @@ pnpm rebuild better-sqlite3
 pnpm dev
 ```
 
-打开 [http://localhost:3000](http://localhost:3000)。首次进入会跳到 `/setup`，按页面提示填写你的微信名、确认隐私说明，也可以先启用 demo 数据体验。
+打开 [http://localhost:3000](http://localhost:3000)。首次进入会跳到 `/setup`，按页面提示填写你的飞书名、确认隐私说明，也可以先启用 demo 数据体验。
 
 ## 前置条件
 
-- [ ] macOS，且已登录微信 4.x
-- [ ] 建议使用注册半年以上的小号或测试号，不建议直接使用主力微信号
-- [ ] 已测试微信版本：`4.1.9.58`；不建议在更高版本上贸然测试
+- [ ] macOS，且已安装飞书客户端
 - [ ] Node.js 20+：`node --version`
 - [ ] pnpm：`corepack enable && pnpm --version`
-- [ ] wx-cli：`wx --version`
-- [ ] wx daemon 正在运行：`wx daemon status`
+- [ ] lark-cli：`lark-cli --version`
+- [ ] lark-cli 已登录：`lark-cli auth login --as user`
 - [ ] 如果要让话题聚合更好，安装并登录 Codex CLI：`codex --version`
 
-wx-cli 可参考原项目安装与初始化：[jackwener/wx-cli](https://github.com/jackwener/wx-cli)。
+lark-cli 可参考 [lark-cli 官方文档](https://open.larksuite.com/document/home/index)安装与初始化。
 
 ## 配置
 
-默认数据目录是 `~/.wechat-radar/`，不会写进项目目录。
+默认数据目录是 `~/.lark-radar/`，不会写进项目目录。
 
 你可以用环境变量覆盖：
 
@@ -70,58 +68,56 @@ cp .env.example .env.local
 常用配置：
 
 ```bash
-WECHAT_RADAR_DATA_DIR=~/.wechat-radar
-WECHAT_RADAR_MY_NAMES=张三,San Zhang,zhangsan
-WECHAT_RADAR_DEMO=0
-WECHAT_RADAR_CODEX_MODEL=
+LARK_RADAR_DATA_DIR=~/.lark-radar
+LARK_RADAR_MY_NAMES=张三,San Zhang,zhangsan
+LARK_RADAR_DEMO=0
+LARK_RADAR_CODEX_MODEL=
 ```
 
-也可以直接在 `/setup` 页面配置。配置会写入 `~/.wechat-radar/config.json`。
+也可以直接在 `/setup` 页面配置。配置会写入 `~/.lark-radar/config.json`。
 
 ## 使用方式
 
 1. 进入首页，选择日期或时间范围。
-2. 点击“重扫”同步当前范围消息。
-3. 点击“全量同步”拉取更长历史。
-4. 打开“话题雷达”查看跨群主题。
-5. 打开“链接情报”查看文章和工具资源。
-6. 在活跃群列表点击“日报”查看单群日报。
+2. 点击"同步"同步当前范围消息。
+3. 点击"全量同步"拉取更长历史。
+4. 打开"话题雷达"查看跨群主题。
+5. 打开"链接情报"查看文章和工具资源。
+6. 在活跃群列表点击"日报"查看单群日报。
 
 你可以这样和 AI 配合：
 
-- “把今天所有 Codex 相关话题整理成一篇博客大纲。”
-- “复制这个群日报，帮我提炼值得回复的机会。”
-- “把链接情报里的工具做成一张试用优先级表。”
+- "把今天所有 Codex 相关话题整理成一篇博客大纲。"
+- "复制这个群日报，帮我提炼值得回复的机会。"
+- "把链接情报里的工具做成一张试用优先级表。"
 
 ## 数据与隐私
 
-WeChat Radar 默认只在本机读写数据：
+Lark Radar 默认只在本机读写数据：
 
-- `~/.wechat-radar/radar.db`：SQLite 主数据库
-- `~/.wechat-radar/config.json`：本地配置
-- `~/.wechat-radar/backups/`：可选备份
+- `~/.lark-radar/radar.db`：SQLite 主数据库
+- `~/.lark-radar/config.json`：本地配置
+- `~/.lark-radar/backups/`：可选备份
 
 安全设计：
 
-- wx-cli 调用使用 `child_process.execFile` 参数数组，不拼 shell
+- lark-cli 调用使用 `child_process.execFile` 参数数组，不拼 shell
 - SQLite 使用 prepared statements
 - 页面只以 React 文本节点渲染聊天内容
-- 不把微信密钥、会话、数据库、模型缓存提交进仓库
+- 不把飞书密钥、会话、数据库、模型缓存提交进仓库
 
 重要风险提示：
 
-- 建议使用注册半年以上的小号或测试号，不建议使用主力微信号。
 - 当前只建议读取历史聊天记录，用于本地检索、聚合和摘要。
-- 不建议读取朋友圈，也不要自动点赞、评论、发消息、加好友、改资料或做任何写入/社交操作。
-- 已测试通过的微信版本是 `4.1.9.58`；不建议在更高版本上贸然测试，版本变化可能带来不可预期的账号风险。
-- 请确认你的使用方式符合微信客户端规则、当地法律、群成员隐私预期和你所在组织的合规要求。
+- 不要自动发消息、加好友、改资料或做任何写入/社交操作。
+- 请确认你的使用方式符合飞书开放平台规则、当地法律、群成员隐私预期和你所在组织的合规要求。
 - 不要把包含真实聊天内容的数据库或截图上传到公开仓库。
 
 ## 免责声明与禁止事项
 
 本项目仅供学习研究、个人评估和非商业实验使用。禁止用于商业盈利，包括但不限于 SaaS、托管服务、付费报表、咨询交付、商业监控、线索挖掘、数据售卖、企业内部生产系统或任何直接/间接商业收益场景。
 
-本项目与腾讯、微信、wx-cli 均无官方关联，未获得腾讯或微信授权、认可、赞助或背书。微信、WeChat、腾讯、Tencent 等名称和商标归其权利人所有。
+本项目与飞书（Lark）、字节跳动均无官方关联，未获得飞书或字节跳动授权、认可、赞助或背书。飞书、Lark、字节跳动等名称和商标归其权利人所有。
 
 用户需要自行承担安装、配置、运行、修改、部署、数据处理和传播行为的全部责任。因使用或误用本项目导致的账号限制、数据丢失、隐私泄露、商业损失、法律纠纷、平台处罚、服务中断、误判摘要或其它后果，项目作者和贡献者不承担责任。
 
@@ -132,7 +128,7 @@ WeChat Radar 默认只在本机读写数据：
 ```text
 app/                 Next.js App Router 页面与 API
 components/          看板、侧边栏、图表、消息渲染组件
-lib/                 wx-cli 封装、SQLite、话题/链接聚合逻辑
+lib/                 lark-cli 封装、SQLite、话题/链接聚合逻辑
 scripts/             本地维护脚本
 docs/assets/         README 图片与公开素材
 ```
@@ -141,15 +137,15 @@ docs/assets/         README 图片与公开素材
 
 | 问题 | 解决方法 |
 | --- | --- |
-| `wx daemon 未运行` | 先运行 `wx daemon start`，再刷新页面。 |
+| `lark-cli 未登录` | 先运行 `lark-cli auth login --as user`，再刷新页面。 |
 | `better-sqlite3` native 模块报错 | 运行 `pnpm rebuild better-sqlite3`。 |
-| 首页没有数据 | 先完成 `/setup`，确认 `wx sessions --json` 有输出，然后点击“重扫”。 |
-| 话题雷达为空 | 打开对应日期会自动构建；也可以点击“构建话题”。需要本机可运行 `codex`。 |
-| 不想读取真实微信 | 在 `/setup` 勾选 demo 模式，或设置 `WECHAT_RADAR_DEMO=1`。 |
+| 首页没有数据 | 先完成 `/setup`，确认 `lark-cli doctor` 有输出，然后点击"同步"。 |
+| 话题雷达为空 | 打开对应日期会自动构建；也可以点击"构建话题"。需要本机可运行 `codex`。 |
+| 不想读取真实飞书 | 在 `/setup` 勾选 demo 模式，或设置 `LARK_RADAR_DEMO=1`。 |
 
 ## 致谢
 
-- [jackwener/wx-cli](https://github.com/jackwener/wx-cli)：本项目依赖它读取本机微信数据。
+- [飞书开放平台](https://open.larksuite.com/)：本项目通过 lark-cli 读取飞书数据。
 - [Next.js](https://nextjs.org/)、[ECharts](https://echarts.apache.org/)、[better-sqlite3](https://github.com/WiseLibs/better-sqlite3)。
 
 ---
@@ -158,7 +154,7 @@ docs/assets/         README 图片与公开素材
 
 ## English
 
-WeChat Radar is a local-first intelligence dashboard for WeChat groups. It turns noisy group chats into daily briefings, cross-group topics, link intelligence, mentions, and per-group reports.
+Lark Radar is a local-first intelligence dashboard for Lark groups. It turns noisy group chats into daily briefings, cross-group topics, link intelligence, mentions, and per-group reports.
 
 ### Features
 
@@ -179,36 +175,33 @@ pnpm rebuild better-sqlite3
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The first run redirects to `/setup`, where you can configure your WeChat display names and privacy confirmation, or enable demo mode.
+Open [http://localhost:3000](http://localhost:3000). The first run redirects to `/setup`, where you can configure your Lark display names and privacy confirmation, or enable demo mode.
 
 ### Requirements
 
-- [ ] macOS with WeChat 4.x logged in
-- [ ] Prefer a secondary/test WeChat account that has existed for at least six months
-- [ ] Tested WeChat version: `4.1.9.58`; newer versions are not recommended for unverified testing
+- [ ] macOS with Lark client installed
 - [ ] Node.js 20+
 - [ ] pnpm
-- [ ] wx-cli initialized and running
+- [ ] lark-cli installed and authenticated
 - [ ] Optional: Codex CLI for better topic/link summaries
 
 ### Privacy
 
-By default, runtime data is stored locally under `~/.wechat-radar/`. The app does not upload your chat database. You are responsible for using it in a way that respects WeChat rules, local laws, group privacy expectations, and organizational compliance.
+By default, runtime data is stored locally under `~/.lark-radar/`. The app does not upload your chat database. You are responsible for using it in a way that respects Lark platform rules, local laws, group privacy expectations, and organizational compliance.
 
 Safety guidance:
 
-- Prefer a secondary or test WeChat account that has existed for at least six months.
 - Use this project for read-only historical chat access.
-- Do not use it for Moments, likes, comments, sending messages, adding friends, profile changes, or any other write/social action.
-- The tested WeChat version is `4.1.9.58`; newer versions may carry unknown account risk and are not recommended for unverified testing.
+- Do not automate sending messages, adding friends, profile changes, or any other write/social action.
+- The tested approach relies on lark-cli; platform changes may affect functionality.
 
 ### Troubleshooting
 
 | Problem | Fix |
 | --- | --- |
-| wx daemon is not running | Run `wx daemon start`. |
+| lark-cli not authenticated | Run `lark-cli auth login --as user`. |
 | better-sqlite3 fails to load | Run `pnpm rebuild better-sqlite3`. |
-| No dashboard data | Finish `/setup`, confirm `wx sessions --json` works, then click rescan. |
+| No dashboard data | Finish `/setup`, confirm `lark-cli doctor` works, then click sync. |
 | Topic radar is empty | Open the date or click build topics; make sure `codex` is available. |
 
 ## License

@@ -153,7 +153,7 @@ function domainOf(url: string): string {
   }
 }
 
-function isWeChatArticle(url: URL): boolean {
+function isExternalArticle(url: URL): boolean {
   return url.hostname === 'mp.weixin.qq.com' && (
     (url.pathname.startsWith('/s/') && url.pathname.length > 3) ||
     url.searchParams.has('__biz') ||
@@ -170,7 +170,7 @@ function isArticleLink(url: string): boolean {
   try {
     const u = new URL(url);
     const host = u.hostname.replace(/^www\./, '');
-    if (isWeChatArticle(u)) return true;
+    if (isExternalArticle(u)) return true;
     if ((host === 'x.com' || host === 'twitter.com') && /\/status\/\d{12,}/.test(u.pathname)) return true;
     if ((host === 'youtube.com' || host === 'youtu.be') && (u.pathname === '/watch' || host === 'youtu.be')) {
       return true;
@@ -188,7 +188,7 @@ function isToolLink(url: string, content: string): boolean {
     if (
       host === 'x.com' ||
       host === 'twitter.com' ||
-      (host === 'mp.weixin.qq.com' && !isWeChatArticle(u)) ||
+      (host === 'mp.weixin.qq.com' && !isExternalArticle(u)) ||
       isLarkDoc(u) ||
       /meeting\.tencent\.com$/.test(host) ||
       IGNORED_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))
@@ -379,7 +379,7 @@ function buildTitleGenerationPrompt(items: LinkIntelligenceItem[]): string {
     )
     .join('\n');
 
-  return `你是微信群链接情报的标题整理器。请为每个链接生成适合列表展示的中文标题，并给出语义去重 key。
+  return `你是群聊链接情报的标题整理器。请为每个链接生成适合列表展示的中文标题，并给出语义去重 key。
 
 要求：
 - title 要短、具体、可点击，优先保留产品名、文章主题、工具名或资料名。

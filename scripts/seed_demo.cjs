@@ -4,7 +4,7 @@ const { existsSync, mkdirSync, writeFileSync } = require('node:fs');
 const { homedir } = require('node:os');
 const { dirname, join } = require('node:path');
 
-const dataDir = process.env.WECHAT_RADAR_DATA_DIR || join(homedir(), '.wechat-radar');
+const dataDir = process.env.LARK_RADAR_DATA_DIR || join(homedir(), '.lark-radar');
 const dbPath = join(dataDir, 'radar.db');
 if (!existsSync(dirname(dbPath))) mkdirSync(dirname(dbPath), { recursive: true });
 const db = new Database(dbPath);
@@ -39,7 +39,7 @@ const contents = [
   '下周有一个 AI 工具内测名额，想找 20 个真实团队试用，感兴趣可以报名。',
   'GEO 和 SEO 的差别今天讨论很多，核心不是关键词，而是结构化证据和可信来源。',
   '有没有人熟悉 Chrome Extension 上架流程？需要一个 checklist。',
-  '@你的微信名 这个话题你可能有经验：如何把群聊素材整理成公众号选题？',
+  '@你的昵称 这个话题你可能有经验：如何把群聊素材整理成公众号选题？',
   '新的语音转文字工具体验不错 https://example.com/voice-note 支持批量导出 Markdown。',
   '今天最值得关注的是 AI 工具开始从个人效率走向团队工作流。',
 ];
@@ -68,5 +68,5 @@ db.transaction(() => {
   }
 })();
 
-writeFileSync(join(dataDir, 'config.json'), JSON.stringify({ myNicknames: ['你的微信名'], defaultRange: 'week', rescanConcurrency: 5, privacyConfirmed: true, setupCompleted: true, demoMode: true, defaultSyncDays: 7 }, null, 2));
+writeFileSync(join(dataDir, 'config.json'), JSON.stringify({ myNicknames: ['你的昵称'], defaultRange: 'week', rescanConcurrency: 5, privacyConfirmed: true, setupCompleted: true, demoMode: true, defaultSyncDays: 7 }, null, 2));
 console.log(`Seeded demo data at ${dbPath}`);

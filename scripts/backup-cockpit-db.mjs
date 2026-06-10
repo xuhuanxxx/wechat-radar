@@ -5,7 +5,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-const dataDir = process.env.WECHAT_RADAR_DATA_DIR || join(homedir(), '.wechat-radar');
+const dataDir = process.env.LARK_RADAR_DATA_DIR || join(homedir(), '.lark-radar');
 const source = join(dataDir, 'radar.db');
 const backupDir = join(dataDir, 'backups');
 
