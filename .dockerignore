@@ -1,0 +1,60 @@
+# Git
+.git
+.gitignore
+
+# Node modules (installed in container)
+node_modules
+
+# Build outputs
+.next
+dist
+out
+
+# Development
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Test coverage
+coverage
+.nyc_output
+
+# Documentation (not needed in container)
+docs
+
+# Scripts (not needed in container)
+scripts
+
+# Go server (separate service, not in web container)
+go-server
+src-tauri
+
+# macOS app build output
+dist
+
+# Misc
+README.md
+DISCLAIMER.md
+PRIVACY.md
+SECURITY.md
+LICENSE
+MIGRATION.md
+DEVELOPMENT.md
+API_SPEC.md
+ARCHITECTURE.md
+DEPLOYMENT.md
