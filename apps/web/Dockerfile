@@ -16,11 +16,15 @@ RUN apk add --no-cache python3 make g++ && npm install -g pnpm
 # Copy workspace manifests first to maximize cache hits on dep installs.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
+COPY packages/api-contract/package.json packages/api-contract/package.json
 
 RUN pnpm install --frozen-lockfile --filter @lark-radar/web...
 
-# Copy the web app sources (other apps are not needed for this image).
+# Copy the web app + the workspace deps it imports from (api-contract
+# ships only generated TypeScript declarations — no runtime — but they
+# must be present at type-check time, which is part of `next build`).
 COPY apps/web apps/web
+COPY packages/api-contract packages/api-contract
 
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter @lark-radar/web build
