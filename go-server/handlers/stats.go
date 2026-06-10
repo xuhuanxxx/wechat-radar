@@ -119,6 +119,7 @@ func (h *Handlers) queryStats(window models.TimeWindow) (*models.StatsResponse, 
 		} else {
 			g.Name = g.ChatroomID
 		}
+		g.TopSenders = []models.SenderCount{}
 		resp.ActiveGroups = append(resp.ActiveGroups, g)
 	}
 
