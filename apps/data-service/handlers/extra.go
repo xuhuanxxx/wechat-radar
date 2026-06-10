@@ -1,10 +1,9 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"net/http"
 	"strconv"
-
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
 // NewMessages handles GET /api/new-messages
@@ -29,25 +28,25 @@ func (h *Handlers) NewMessages(w http.ResponseWriter, r *http.Request) {
 		limit,
 	)
 	if err != nil {
-		writeJSON(w, http.StatusOK, models.NewMessagesResponse{
+		writeJSON(w, http.StatusOK, api.NewMessagesResponse{
 			OK:       true,
-			Messages: []models.Message{},
+			Messages: []api.Message{},
 			Count:    0,
 		})
 		return
 	}
 	defer rows.Close()
 
-	messages := []models.Message{}
+	messages := []api.Message{}
 	for rows.Next() {
-		var m models.Message
+		var m api.Message
 		if err := rows.Scan(&m.ChatroomID, &m.LocalID, &m.Sender, &m.Content, &m.Timestamp, &m.Type, &m.Date); err != nil {
 			continue
 		}
 		messages = append(messages, m)
 	}
 
-	writeJSON(w, http.StatusOK, models.NewMessagesResponse{
+	writeJSON(w, http.StatusOK, api.NewMessagesResponse{
 		OK:       true,
 		Messages: messages,
 		Count:    len(messages),
@@ -73,14 +72,14 @@ func (h *Handlers) Rescan(w http.ResponseWriter, r *http.Request) {
 			unique_senders = excluded.unique_senders
 	`)
 	if err != nil {
-		writeJSON(w, http.StatusOK, models.RescanResponse{
+		writeJSON(w, http.StatusOK, api.RescanResponse{
 			OK:      true,
 			Message: "Re-scan triggered (stats update may be partial)",
 		})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, models.RescanResponse{
+	writeJSON(w, http.StatusOK, api.RescanResponse{
 		OK:      true,
 		Message: "Re-scan completed",
 	})
@@ -101,7 +100,7 @@ func (h *Handlers) WXImage(w http.ResponseWriter, r *http.Request) {
 
 	// For MVP: return a placeholder JSON response
 	// In production, this would proxy the image with proper headers/cookies
-	writeJSON(w, http.StatusOK, models.WXImageResponse{
+	writeJSON(w, http.StatusOK, api.WXImageResponse{
 		OK:      true,
 		URL:     url,
 		Message: "Image proxy placeholder",

@@ -1,12 +1,11 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
-
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
 // LarkSync handles POST /api/lark/sync with optional SSE streaming
@@ -16,9 +15,9 @@ func (h *Handlers) LarkSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req models.SyncRequest
+	var req api.SyncRequest
 	if err := parseJSON(r, &req); err != nil {
-		req = models.SyncRequest{}
+		req = api.SyncRequest{}
 	}
 
 	if req.DaysBack == 0 {
@@ -35,11 +34,11 @@ func (h *Handlers) LarkSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Non-streaming: sync all or single chat
-	var results map[string]models.SyncResult
+	var results map[string]api.SyncResult
 	var err error
 
 	if req.ChatID != "" {
-		results = make(map[string]models.SyncResult)
+		results = make(map[string]api.SyncResult)
 		result, syncErr := h.syncEngine.SyncChat(req.ChatID, req.DaysBack)
 		if syncErr != nil {
 			err = syncErr
@@ -51,7 +50,7 @@ func (h *Handlers) LarkSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		writeJSON(w, http.StatusOK, models.SyncResponse{
+		writeJSON(w, http.StatusOK, api.SyncResponse{
 			OK:     false,
 			Error:  err.Error(),
 			Synced: results,
@@ -59,13 +58,13 @@ func (h *Handlers) LarkSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, models.SyncResponse{
+	writeJSON(w, http.StatusOK, api.SyncResponse{
 		OK:     true,
 		Synced: results,
 	})
 }
 
-func (h *Handlers) handleLarkSyncStream(w http.ResponseWriter, r *http.Request, req models.SyncRequest) {
+func (h *Handlers) handleLarkSyncStream(w http.ResponseWriter, r *http.Request, req api.SyncRequest) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -77,21 +76,21 @@ func (h *Handlers) handleLarkSyncStream(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	sendEvent := func(event models.SyncProgressEvent) {
+	sendEvent := func(event api.SyncProgressEvent) {
 		data, _ := json.Marshal(event)
 		fmt.Fprintf(w, "data: %s\n\n", data)
 		flusher.Flush()
 	}
 
 	// Send start event
-	sendEvent(models.SyncProgressEvent{
+	sendEvent(api.SyncProgressEvent{
 		Type:  "start",
 		Phase: "fetching_chats",
 	})
 
 	// If single chat, just sync it
 	if req.ChatID != "" {
-		sendEvent(models.SyncProgressEvent{
+		sendEvent(api.SyncProgressEvent{
 			Type:   "progress",
 			ChatID: req.ChatID,
 			Phase:  "syncing",
@@ -100,24 +99,24 @@ func (h *Handlers) handleLarkSyncStream(w http.ResponseWriter, r *http.Request, 
 
 		result, err := h.syncEngine.SyncChat(req.ChatID, req.DaysBack)
 		if err != nil {
-			sendEvent(models.SyncProgressEvent{
+			sendEvent(api.SyncProgressEvent{
 				Type:  "error",
 				Error: err.Error(),
 			})
 			return
 		}
 
-		sendEvent(models.SyncProgressEvent{
+		sendEvent(api.SyncProgressEvent{
 			Type:   "progress",
 			ChatID: req.ChatID,
 			Phase:  "done",
 			Count:  result.Inserted,
 		})
 
-		sendEvent(models.SyncProgressEvent{
+		sendEvent(api.SyncProgressEvent{
 			Type:   "finished",
 			OK:     true,
-			Synced: map[string]models.SyncResult{req.ChatID: result},
+			Synced: map[string]api.SyncResult{req.ChatID: result},
 		})
 		return
 	}
@@ -140,14 +139,14 @@ func (h *Handlers) handleLarkSyncStream(w http.ResponseWriter, r *http.Request, 
 			if !status.Running && !status.CompletedAt.IsZero() {
 				// Send final progress for all chats
 				for chatID, result := range status.Results {
-					sendEvent(models.SyncProgressEvent{
+					sendEvent(api.SyncProgressEvent{
 						Type:   "progress",
 						ChatID: chatID,
 						Phase:  "done",
 						Count:  result.Inserted,
 					})
 				}
-				sendEvent(models.SyncProgressEvent{
+				sendEvent(api.SyncProgressEvent{
 					Type:   "finished",
 					OK:     status.Error == "",
 					Synced: status.Results,
@@ -155,7 +154,7 @@ func (h *Handlers) handleLarkSyncStream(w http.ResponseWriter, r *http.Request, 
 				return
 			}
 			for chatID, progress := range status.Progress {
-				sendEvent(models.SyncProgressEvent{
+				sendEvent(api.SyncProgressEvent{
 					Type:   "progress",
 					ChatID: chatID,
 					Phase:  "syncing",

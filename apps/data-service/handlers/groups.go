@@ -1,10 +1,9 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"net/http"
 	"strconv"
-
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
 // Groups returns all groups with tags
@@ -26,9 +25,9 @@ func (h *Handlers) Groups(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	groups := []models.GroupWithTags{}
+	groups := []api.GroupWithTags{}
 	for rows.Next() {
-		var g models.GroupWithTags
+		var g api.GroupWithTags
 		var tagsStr string
 		if err := rows.Scan(&g.ChatroomID, &g.Name, &g.MemberCount, &tagsStr); err != nil {
 			continue
@@ -41,7 +40,7 @@ func (h *Handlers) Groups(w http.ResponseWriter, r *http.Request) {
 		groups = append(groups, g)
 	}
 
-	writeJSON(w, http.StatusOK, models.GroupsResponse{
+	writeJSON(w, http.StatusOK, api.GroupsResponse{
 		OK:     true,
 		Groups: groups,
 	})
@@ -96,7 +95,7 @@ func (h *Handlers) GroupDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build response
-	resp := models.GroupDetailResponse{
+	resp := api.GroupDetailResponse{
 		OK:          true,
 		ChatroomID:  chatroomID,
 		Name:        name,
@@ -117,9 +116,9 @@ func (h *Handlers) GroupDetail(w http.ResponseWriter, r *http.Request) {
 	msgRows, err := h.db.Query(msgQuery, msgArgs...)
 	if err == nil {
 		defer msgRows.Close()
-		recent := []models.Message{}
+		recent := []api.Message{}
 		for msgRows.Next() {
-			var m models.Message
+			var m api.Message
 			if err := msgRows.Scan(&m.ChatroomID, &m.LocalID, &m.Sender, &m.Content, &m.Timestamp, &m.Type, &m.Date); err != nil {
 				continue
 			}
@@ -135,9 +134,9 @@ func (h *Handlers) GroupDetail(w http.ResponseWriter, r *http.Request) {
 	)
 	if err == nil {
 		defer histRows.Close()
-		history := []models.DailyEntry{}
+		history := []api.DailyEntry{}
 		for histRows.Next() {
-			var e models.DailyEntry
+			var e api.DailyEntry
 			if err := histRows.Scan(&e.Date, &e.Total, &e.UniqueSenders); err != nil {
 				continue
 			}
@@ -187,14 +186,14 @@ func (h *Handlers) listGroupTags(w http.ResponseWriter, r *http.Request) {
 		tags = append(tags, tag)
 	}
 
-	writeJSON(w, http.StatusOK, models.GroupTagsResponse{
+	writeJSON(w, http.StatusOK, api.GroupTagsResponse{
 		OK:   true,
 		Tags: tags,
 	})
 }
 
 func (h *Handlers) addGroupTag(w http.ResponseWriter, r *http.Request) {
-	var req models.GroupTagRequest
+	var req api.GroupTagRequest
 	if err := parseJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid JSON")
 		return
@@ -214,7 +213,7 @@ func (h *Handlers) addGroupTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, models.GroupTagResponse{
+	writeJSON(w, http.StatusOK, api.GroupTagResponse{
 		OK:  true,
 		Tag: req.Tag,
 	})

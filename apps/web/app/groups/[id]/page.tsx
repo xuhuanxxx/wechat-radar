@@ -78,7 +78,7 @@ export default function GroupDetailPage({
     setLoading(true);
     setErr(null);
     try {
-      const r = await apiFetch(`/api/group/${encodeURIComponent(chatroomId)}?date=${d}&limit=500`);
+      const r = await apiFetch(`/api/groups/${encodeURIComponent(chatroomId)}?date=${d}&limit=500`);
       const j = (await r.json()) as Detail;
       if (!j.ok) {
         setErr('详情加载失败');
@@ -108,7 +108,7 @@ export default function GroupDetailPage({
   useEffect(() => {
     (async () => {
       try {
-        const r = await apiFetch(`/api/group-tags?chatroom_id=${encodeURIComponent(chatroomId)}`);
+        const r = await apiFetch(`/api/groups/tags?chatroom_id=${encodeURIComponent(chatroomId)}`);
         const j = await r.json();
         if (j.ok && Array.isArray(j.group_ids)) setFav(false); // tags only, fav read separately if needed
       } catch {}
@@ -118,7 +118,7 @@ export default function GroupDetailPage({
   const toggleFav = async () => {
     const next = !fav;
     setFav(next);
-    await apiFetch('/api/group-tags', {
+    await apiFetch('/api/groups/tags', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ chatroom_id: chatroomId, fav: next }),

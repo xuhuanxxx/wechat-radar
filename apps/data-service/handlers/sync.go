@@ -1,9 +1,8 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"net/http"
-
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
 // Sync triggers a sync operation
@@ -13,10 +12,10 @@ func (h *Handlers) Sync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req models.SyncRequest
+	var req api.SyncRequest
 	if err := parseJSON(r, &req); err != nil {
 		// Empty body is ok, use defaults
-		req = models.SyncRequest{}
+		req = api.SyncRequest{}
 	}
 
 	if req.DaysBack == 0 {
@@ -26,7 +25,7 @@ func (h *Handlers) Sync(w http.ResponseWriter, r *http.Request) {
 	// Run sync synchronously for now
 	results, err := h.syncEngine.SyncAll(req.DaysBack)
 	if err != nil {
-		writeJSON(w, http.StatusOK, models.SyncResponse{
+		writeJSON(w, http.StatusOK, api.SyncResponse{
 			OK:     false,
 			Error:  err.Error(),
 			Synced: results,
@@ -34,7 +33,7 @@ func (h *Handlers) Sync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, models.SyncResponse{
+	writeJSON(w, http.StatusOK, api.SyncResponse{
 		OK:     true,
 		Synced: results,
 	})

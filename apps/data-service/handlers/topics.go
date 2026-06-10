@@ -1,11 +1,10 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"database/sql"
 	"net/http"
 	"strings"
-
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
 // Topics returns topics for a chatroom
@@ -38,25 +37,27 @@ func (h *Handlers) Topics(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	topics := []models.Topic{}
+	topics := []api.Topic{}
 	for rows.Next() {
-		var t models.Topic
+		var t api.Topic
 		var messageIDs sql.NullString
 		if err := rows.Scan(&t.ID, &t.ChatroomID, &t.Date, &t.Topic, &t.Category, &t.Confidence, &messageIDs); err != nil {
 			continue
 		}
 		if messageIDs.Valid {
-			t.MessageIDs = messageIDs.String
+			t.MessageIDs = api.Ptr(messageIDs.String)
 		}
 		topics = append(topics, t)
 	}
 
-	writeJSON(w, http.StatusOK, models.TopicsResponse{
-		OK:         true,
-		ChatroomID: chatroomID,
-		Date:       date,
-		Topics:     topics,
-	})
+	resp := api.TopicsResponse{OK: true, Topics: topics}
+	if chatroomID != "" {
+		resp.ChatroomID = api.Ptr(chatroomID)
+	}
+	if date != "" {
+		resp.Date = api.Ptr(date)
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // TopicDetail handles GET /api/topics/:id
@@ -72,7 +73,7 @@ func (h *Handlers) TopicDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var t models.Topic
+	var t api.Topic
 	var messageIDs sql.NullString
 	err := h.db.QueryRow(
 		"SELECT id, chatroom_id, date, topic, category, confidence, message_ids FROM topics WHERE id = ?",
@@ -87,10 +88,10 @@ func (h *Handlers) TopicDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if messageIDs.Valid {
-		t.MessageIDs = messageIDs.String
+		t.MessageIDs = api.Ptr(messageIDs.String)
 	}
 
-	writeJSON(w, http.StatusOK, models.TopicDetailResponse{
+	writeJSON(w, http.StatusOK, api.TopicDetailResponse{
 		OK:    true,
 		Topic: t,
 	})
@@ -120,17 +121,17 @@ func (h *Handlers) TopicLinks(w http.ResponseWriter, r *http.Request) {
 		date,
 	)
 	if err != nil {
-		writeJSON(w, http.StatusOK, models.TopicLinksResponse{
+		writeJSON(w, http.StatusOK, api.TopicLinksResponse{
 			OK:    true,
-			Date:  date,
-			Links: []models.Link{},
+			Date:  api.Ptr(date),
+			Links: []api.Link{},
 			Count: 0,
 		})
 		return
 	}
 	defer rows.Close()
 
-	links := []models.Link{}
+	links := []api.Link{}
 	seen := make(map[string]bool)
 	for rows.Next() {
 		var chatroomID, msgID, content, msgDate string
@@ -144,7 +145,7 @@ func (h *Handlers) TopicLinks(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			seen[key] = true
-			links = append(links, models.Link{
+			links = append(links, api.Link{
 				ChatroomID: chatroomID,
 				MessageID:  msgID,
 				URL:        url,
@@ -153,9 +154,9 @@ func (h *Handlers) TopicLinks(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, models.TopicLinksResponse{
+	writeJSON(w, http.StatusOK, api.TopicLinksResponse{
 		OK:    true,
-		Date:  date,
+		Date:  api.Ptr(date),
 		Links: links,
 		Count: len(links),
 	})
@@ -168,7 +169,7 @@ func (h *Handlers) AnalyzeTopics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req models.TopicAnalyzeRequest
+	var req api.TopicAnalyzeRequest
 	if err := parseJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid JSON")
 		return
@@ -186,13 +187,13 @@ func (h *Handlers) AnalyzeTopics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, models.TopicAnalyzeResponse{
+	writeJSON(w, http.StatusOK, api.TopicAnalyzeResponse{
 		OK:     true,
 		Topics: topics,
 	})
 }
 
-func (h *Handlers) extractTopics(chatroomID, date string) ([]models.Topic, error) {
+func (h *Handlers) extractTopics(chatroomID, date string) ([]api.Topic, error) {
 	// Get messages for the day
 	rows, err := h.db.Query(
 		"SELECT content FROM messages WHERE chatroom_id = ? AND date = ?",
@@ -219,10 +220,10 @@ func (h *Handlers) extractTopics(chatroomID, date string) ([]models.Topic, error
 	}
 
 	// Get top words as topics
-	topics := []models.Topic{}
+	topics := []api.Topic{}
 	for word, freq := range wordFreq {
 		if freq >= 2 {
-			topics = append(topics, models.Topic{
+			topics = append(topics, api.Topic{
 				ChatroomID: chatroomID,
 				Date:       date,
 				Topic:      word,

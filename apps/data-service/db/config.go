@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 )
 
 // ConfigManager manages the config file
@@ -21,19 +21,19 @@ func NewConfigManager(path string) *ConfigManager {
 }
 
 // Load loads the config from file
-func (cm *ConfigManager) Load() (*models.Config, error) {
+func (cm *ConfigManager) Load() (*api.Config, error) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 
 	data, err := os.ReadFile(cm.path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return &models.Config{
+			return &api.Config{
 				MyNicknames:      []string{},
 				DefaultRange:     "7d",
 				Port:             8787,
 				AutoSyncInterval: 0,
-				LarkChatFilter: models.LarkChatFilter{
+				LarkChatFilter: api.LarkChatFilter{
 					Mode:      "all",
 					Allowlist: []string{},
 					Blocklist: []string{},
@@ -43,7 +43,7 @@ func (cm *ConfigManager) Load() (*models.Config, error) {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 
-	var cfg models.Config
+	var cfg api.Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
@@ -60,7 +60,7 @@ func (cm *ConfigManager) Load() (*models.Config, error) {
 }
 
 // Save saves the config to file
-func (cm *ConfigManager) Save(cfg *models.Config) error {
+func (cm *ConfigManager) Save(cfg *api.Config) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 

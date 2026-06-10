@@ -456,7 +456,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Raw passthrough of `lark-cli im +chat-messages-list` */
+        /**
+         * Raw passthrough of `lark-cli im +chat-messages-list`
+         * @description Whatever shape lark-cli emits for the given chat — the data service does
+         *     not normalize or wrap it. Callers should treat the body as opaque JSON.
+         */
         get: operations["getLarkMessages"];
         put?: never;
         post?: never;
@@ -610,8 +614,7 @@ export interface components {
             ok: boolean;
         };
         ErrorResponse: {
-            /** @enum {boolean} */
-            ok: false;
+            ok: boolean;
             error: string;
         };
         HealthResponse: {
@@ -622,7 +625,7 @@ export interface components {
         DoctorCheck: {
             name: string;
             status: string;
-            message?: string;
+            message: string;
         };
         DoctorResponse: {
             ok: boolean;
@@ -631,15 +634,15 @@ export interface components {
         LarkChatFilter: {
             /** @enum {string} */
             mode: "all" | "allowlist" | "blocklist";
-            allowlist?: string[];
-            blocklist?: string[];
+            allowlist: string[];
+            blocklist: string[];
         };
         Config: {
             myNicknames: string[];
             defaultRange: string;
             port: number;
             autoSyncInterval: number;
-            larkChatFilter?: components["schemas"]["LarkChatFilter"];
+            larkChatFilter: components["schemas"]["LarkChatFilter"];
             demoMode: boolean;
             privacyConfirmed: boolean;
             defaultSyncDays: number;
@@ -651,7 +654,7 @@ export interface components {
         SetupChecks: {
             larkInstalled: boolean;
             larkAuthenticated: boolean;
-            larkError?: string;
+            larkError: string;
         };
         SetupStatus: {
             ok: boolean;
@@ -659,26 +662,26 @@ export interface components {
             configured: boolean;
             config: components["schemas"]["Config"];
             checks: components["schemas"]["SetupChecks"];
-            error?: string;
+            error: string;
         };
         SetupRequest: {
             myNicknames: string[];
             defaultRange: string;
-            port?: number;
-            autoSyncInterval?: number;
-            larkChatFilter?: components["schemas"]["LarkChatFilter"];
+            port: number;
+            autoSyncInterval: number;
+            larkChatFilter: components["schemas"]["LarkChatFilter"];
             demoMode: boolean;
             privacyConfirmed: boolean;
-            defaultSyncDays?: number;
+            defaultSyncDays: number;
             source: string;
-            larkCliPath?: string;
-            openApiKey?: string;
+            larkCliPath: string;
+            openApiKey: string;
         };
         SetupResponse: {
             ok: boolean;
-            configured?: boolean;
-            message?: string;
-            error?: string;
+            configured: boolean;
+            message: string;
+            error: string;
         };
         ConfigResponse: {
             ok: boolean;
@@ -721,6 +724,7 @@ export interface components {
             labels: string[];
             values: number[];
             peak: components["schemas"]["TrendPoint"];
+            /** Format: double */
             avg: number;
             total: number;
         };
@@ -757,7 +761,7 @@ export interface components {
             active_groups: components["schemas"]["ActiveGroup"][];
             categories: components["schemas"]["CategoryStat"][];
             /** @description Free-form intelligence payload (shape varies) */
-            intelligence?: {
+            intelligence: {
                 [key: string]: unknown;
             } | null;
             sidebar_counts: components["schemas"]["SidebarCounts"];
@@ -765,9 +769,9 @@ export interface components {
         IntelligenceBrief: {
             ok: boolean;
             summary: string;
-            highlights?: string[];
-            risks?: string[];
-            opportunities?: string[];
+            highlights: string[];
+            risks: string[];
+            opportunities: string[];
         };
         CategoryInfo: {
             id: number;
@@ -834,11 +838,11 @@ export interface components {
             ok: boolean;
             chatroom_id: string;
             date: string;
-            stats?: components["schemas"]["GroupStats"] | null;
+            stats: components["schemas"]["GroupStats"] | null;
             recent: components["schemas"]["Message"][];
             daily_history: components["schemas"]["DailyEntry"][];
-            sync_state?: components["schemas"]["SyncState"] | null;
-            synced_dates?: string[];
+            sync_state: components["schemas"]["SyncState"] | null;
+            synced_dates: string[];
         };
         Group: {
             chatroom_id: string;
@@ -858,11 +862,11 @@ export interface components {
             ok: boolean;
             chatroom_id: string;
             name: string;
-            member_count?: number;
+            member_count: number;
             tags: string[];
-            stats?: components["schemas"]["GroupStats"];
-            recent?: components["schemas"]["Message"][];
-            daily_history?: components["schemas"]["DailyEntry"][];
+            stats: components["schemas"]["GroupStats"];
+            recent: components["schemas"]["Message"][];
+            daily_history: components["schemas"]["DailyEntry"][];
         };
         GroupTagRequest: {
             chatroom_id: string;
@@ -878,10 +882,10 @@ export interface components {
         };
         SyncRequest: {
             /** @description Sync a single chat. Omit to sync all. */
-            chat_id?: string;
+            chat_id: string;
             /** @default 7 */
             days_back: number;
-            stream?: boolean;
+            stream: boolean;
         };
         SyncResult: {
             inserted: number;
@@ -890,23 +894,23 @@ export interface components {
         };
         SyncResponse: {
             ok: boolean;
-            error?: string;
+            error: string;
             synced: {
                 [key: string]: components["schemas"]["SyncResult"];
             };
         };
-        /** @description Payload of an SSE event from /api/lark/sync (stream=1) */
+        /** @description Payload of an SSE event from /api/lark/sync (stream=1). */
         SyncProgressEvent: {
-            /** @enum {string} */
-            type: "start" | "progress" | "error" | "finished";
-            chatId?: string;
-            phase?: string;
-            count?: number;
-            ok?: boolean;
-            synced?: {
+            /** @description One of: start, progress, error, finished */
+            type: string;
+            chatId: string;
+            phase: string;
+            count: number;
+            ok: boolean;
+            synced: {
                 [key: string]: components["schemas"]["SyncResult"];
             };
-            error?: string;
+            error: string;
         };
         /** @description Best-effort representation of the sync engine status snapshot exposed by /api/sync/progress. Fields depend on the engine. */
         SyncProgressSnapshot: {
@@ -918,6 +922,7 @@ export interface components {
             date: string;
             topic: string;
             category: string;
+            /** Format: double */
             confidence: number;
             message_ids?: string;
             created_at?: string;
@@ -970,7 +975,7 @@ export interface components {
             mentioned: {
                 [key: string]: number;
             };
-            mentioned_by?: {
+            mentioned_by: {
                 [key: string]: string[];
             };
         };
@@ -1018,13 +1023,13 @@ export interface components {
         };
         ReportRequest: {
             chatroom_id: string;
-            date?: string;
-            range?: string;
+            date: string;
+            range: string;
         };
         ReportResponse: {
             ok: boolean;
             report: string;
-            error?: string;
+            error: string;
         };
         SearchResult: {
             chatroom_id: string;
@@ -1052,64 +1057,17 @@ export interface components {
             chats: components["schemas"]["LarkChatItem"][];
             filter: components["schemas"]["LarkChatFilter"];
         };
-        LarkSender: {
-            id: string;
-            id_type?: string;
-            name?: string;
-            sender_id?: string;
-            sender_name?: string;
-        };
-        LarkMessageBody: {
-            content?: string;
-        };
-        LarkMention: {
-            key: string;
-            id: string;
-            name: string;
-            tenant_key?: string;
-        };
-        LarkMessage: {
-            message_id: string;
-            chat_id?: string;
-            sender?: components["schemas"]["LarkSender"];
-            create_time?: string;
-            update_time?: string;
-            msg_type?: string;
-            content?: string;
-            body?: components["schemas"]["LarkMessageBody"];
-            mentions?: components["schemas"]["LarkMention"][];
-            parent_id?: string;
-            thread_id?: string;
-            messageId?: string;
-            msgType?: string;
-            createTime?: string;
-        };
-        LarkError: {
-            type: string;
-            message: string;
-        };
-        LarkMessagesData: {
-            items?: components["schemas"]["LarkMessage"][];
-            messages?: components["schemas"]["LarkMessage"][];
-            has_more?: boolean;
-            page_token?: string;
-        };
-        LarkMessagesResponse: {
-            ok: boolean;
-            data?: components["schemas"]["LarkMessagesData"];
-            messages?: components["schemas"]["LarkMessage"][];
-            error?: components["schemas"]["LarkError"];
-        };
         AIClassifyRequest: {
             chatroom_ids: string[];
-            date?: string;
+            date: string;
         };
         AIClassifyResult: {
             chatroom_id: string;
-            name?: string;
+            name: string;
             category: string;
+            /** Format: double */
             confidence: number;
-            reason?: string;
+            reason: string;
         };
         AIClassifyResponse: {
             ok: boolean;
@@ -1130,7 +1088,7 @@ export interface components {
         MessageLinksRawResponse: {
             ok: boolean;
             links: components["schemas"]["MessageLink"][];
-            date?: string;
+            date: string;
         };
         MessageLinksBackfillResponse: {
             ok: boolean;
@@ -1147,13 +1105,13 @@ export interface components {
         };
         RescanResponse: {
             ok: boolean;
-            message?: string;
+            message: string;
         };
         WXImageResponse: {
             ok: boolean;
-            url?: string;
-            data?: string;
-            message?: string;
+            url: string;
+            data: string;
+            message: string;
         };
     };
     responses: never;
@@ -1882,13 +1840,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Raw lark-cli JSON (shape varies; LarkMessagesResponse is the typical envelope) */
+            /** @description Raw lark-cli JSON (shape varies) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LarkMessagesResponse"];
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Missing chat_id */

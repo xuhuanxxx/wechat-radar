@@ -1,11 +1,10 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"fmt"
 	"net/http"
 	"strings"
-
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
 // GenerateReport generates a report for a chatroom
@@ -15,7 +14,7 @@ func (h *Handlers) GenerateReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req models.ReportRequest
+	var req api.ReportRequest
 	if err := parseJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid JSON")
 		return
@@ -32,7 +31,7 @@ func (h *Handlers) GenerateReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, models.ReportResponse{
+	writeJSON(w, http.StatusOK, api.ReportResponse{
 		OK:     true,
 		Report: report,
 	})
