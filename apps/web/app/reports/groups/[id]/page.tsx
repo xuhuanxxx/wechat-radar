@@ -44,7 +44,7 @@ export default function GroupDailyReportPage({
     (async () => {
       setLoading(true);
       try {
-        const r = await apiFetch(`/api/group/${encodeURIComponent(chatroomId)}?date=${date}&limit=500`, {
+        const r = await apiFetch(`/api/groups/${encodeURIComponent(chatroomId)}?date=${date}&limit=500`, {
           cache: 'no-store',
         });
         const j = (await r.json()) as Detail;

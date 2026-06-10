@@ -18,5 +18,9 @@ generate:
   client: false
 
 output-options:
-  skip-prune: false
+  # Generate types even if no path $ref's them. SyncProgressEvent in
+  # particular is used by SSE payloads, which OpenAPI can't really $ref —
+  # we document the link in a text description and need the type
+  # generated regardless.
+  skip-prune: true
   user-templates: {}

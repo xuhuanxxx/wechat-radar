@@ -1,9 +1,8 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"net/http"
-
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
 // Favorites returns all favorites
@@ -31,16 +30,16 @@ func (h *Handlers) Favorites(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	favorites := []models.Favorite{}
+	favorites := []api.Favorite{}
 	for rows.Next() {
-		var f models.Favorite
+		var f api.Favorite
 		if err := rows.Scan(&f.ID, &f.ChatroomID, &f.MessageID, &f.Sender, &f.Content, &f.Date); err != nil {
 			continue
 		}
 		favorites = append(favorites, f)
 	}
 
-	writeJSON(w, http.StatusOK, models.FavoritesResponse{
+	writeJSON(w, http.StatusOK, api.FavoritesResponse{
 		OK:        true,
 		Favorites: favorites,
 	})
@@ -53,7 +52,7 @@ func (h *Handlers) ToggleFavorite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req models.FavoriteToggleRequest
+	var req api.FavoriteToggleRequest
 	if err := parseJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid JSON")
 		return
@@ -81,7 +80,7 @@ func (h *Handlers) ToggleFavorite(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, models.FavoriteToggleResponse{
+		writeJSON(w, http.StatusOK, api.FavoriteToggleResponse{
 			OK:        true,
 			Favorited: false,
 		})
@@ -109,7 +108,7 @@ func (h *Handlers) ToggleFavorite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, models.FavoriteToggleResponse{
+	writeJSON(w, http.StatusOK, api.FavoriteToggleResponse{
 		OK:        true,
 		Favorited: true,
 	})

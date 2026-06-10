@@ -5,25 +5,10 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { Star, ChevronRight, Search } from 'lucide-react';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, type Schemas } from '@/lib/api-client';
 
-type Group = {
-  chatroom_id: string;
-  name: string;
-  summary: string;
-  time: string;
-  timestamp: number;
-  unread: number;
-  is_favorite: boolean;
-  group_ids: number[];
-};
-
-type SessionsResp = {
-  ok: boolean;
-  total: number;
-  groups: Group[];
-  categories: Array<{ id: number; name: string; color: string; emoji: string | null }>;
-};
+type Group = Schemas['SessionGroup'];
+type SessionsResp = Schemas['SessionsResponse'];
 
 export default function GroupsListPage() {
   return (
@@ -87,7 +72,7 @@ function GroupsListContent() {
 
   const toggleFav = async (chatroomId: string, current: boolean) => {
     setBumping(chatroomId);
-    await apiFetch('/api/group-tags', {
+    await apiFetch('/api/groups/tags', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ chatroom_id: chatroomId, fav: !current }),

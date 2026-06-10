@@ -1,12 +1,12 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"encoding/json"
 	"net/http"
 	"strings"
 
 	"github.com/xuhuanxxx/wechat-radar/apps/data-service/db"
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 	"github.com/xuhuanxxx/wechat-radar/apps/data-service/sync"
 )
 
@@ -60,7 +60,7 @@ func getPathParam(r *http.Request, prefix string) string {
 func (h *Handlers) requireSetup(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !h.config.IsConfigured() {
-			writeJSON(w, http.StatusServiceUnavailable, models.SetupStatus{
+			writeJSON(w, http.StatusServiceUnavailable, api.SetupStatus{
 				OK:         false,
 				Configured: false,
 				Error:      "Setup required",
@@ -73,7 +73,7 @@ func (h *Handlers) requireSetup(next http.HandlerFunc) http.HandlerFunc {
 
 // Health returns health status
 func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, models.HealthResponse{
+	writeJSON(w, http.StatusOK, api.HealthResponse{
 		OK:      true,
 		Version: "0.1.0",
 		Service: "lark-radar-data",
@@ -82,17 +82,17 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 
 // Doctor runs diagnostic checks
 func (h *Handlers) Doctor(w http.ResponseWriter, r *http.Request) {
-	checks := []models.DoctorCheck{}
+	checks := []api.DoctorCheck{}
 
 	// DB check
 	if err := h.db.Ping(); err != nil {
-		checks = append(checks, models.DoctorCheck{
+		checks = append(checks, api.DoctorCheck{
 			Name:    "database",
 			Status:  "error",
 			Message: err.Error(),
 		})
 	} else {
-		checks = append(checks, models.DoctorCheck{
+		checks = append(checks, api.DoctorCheck{
 			Name:   "database",
 			Status: "ok",
 		})
@@ -100,13 +100,13 @@ func (h *Handlers) Doctor(w http.ResponseWriter, r *http.Request) {
 
 	// Config check
 	if _, err := h.config.Load(); err != nil {
-		checks = append(checks, models.DoctorCheck{
+		checks = append(checks, api.DoctorCheck{
 			Name:    "config",
 			Status:  "error",
 			Message: err.Error(),
 		})
 	} else {
-		checks = append(checks, models.DoctorCheck{
+		checks = append(checks, api.DoctorCheck{
 			Name:   "config",
 			Status: "ok",
 		})
@@ -114,13 +114,13 @@ func (h *Handlers) Doctor(w http.ResponseWriter, r *http.Request) {
 
 	// Lark CLI check
 	if err := h.syncEngine.CheckLarkCLI(); err != nil {
-		checks = append(checks, models.DoctorCheck{
+		checks = append(checks, api.DoctorCheck{
 			Name:    "lark-cli",
 			Status:  "error",
 			Message: err.Error(),
 		})
 	} else {
-		checks = append(checks, models.DoctorCheck{
+		checks = append(checks, api.DoctorCheck{
 			Name:   "lark-cli",
 			Status: "ok",
 		})
@@ -134,7 +134,7 @@ func (h *Handlers) Doctor(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, models.DoctorResponse{
+	writeJSON(w, http.StatusOK, api.DoctorResponse{
 		OK:     allOK,
 		Checks: checks,
 	})
@@ -155,18 +155,18 @@ func (h *Handlers) Setup(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) setupGet(w http.ResponseWriter, r *http.Request) {
 	cfg, err := h.config.Load()
 	if err != nil {
-		writeJSON(w, http.StatusOK, models.SetupStatus{
+		writeJSON(w, http.StatusOK, api.SetupStatus{
 			OK:         false,
 			DataDir:    h.config.DataDir(),
 			Configured: false,
-			Config:     models.Config{},
+			Config:     api.Config{},
 			Checks:     h.runChecks(),
 			Error:      err.Error(),
 		})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, models.SetupStatus{
+	writeJSON(w, http.StatusOK, api.SetupStatus{
 		OK:         true,
 		DataDir:    h.config.DataDir(),
 		Configured: len(cfg.MyNicknames) > 0,
@@ -176,8 +176,8 @@ func (h *Handlers) setupGet(w http.ResponseWriter, r *http.Request) {
 }
 
 // runChecks runs environment checks for the setup page
-func (h *Handlers) runChecks() models.SetupChecks {
-	checks := models.SetupChecks{}
+func (h *Handlers) runChecks() api.SetupChecks {
+	checks := api.SetupChecks{}
 
 	// Check lark-cli availability
 	if err := h.syncEngine.CheckLarkCLI(); err != nil {
@@ -194,7 +194,7 @@ func (h *Handlers) runChecks() models.SetupChecks {
 }
 
 func (h *Handlers) setupPost(w http.ResponseWriter, r *http.Request) {
-	var req models.SetupRequest
+	var req api.SetupRequest
 	if err := parseJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid JSON")
 		return
@@ -205,7 +205,7 @@ func (h *Handlers) setupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg := &models.Config{
+	cfg := &api.Config{
 		MyNicknames:      req.MyNicknames,
 		DefaultRange:     req.DefaultRange,
 		Port:             req.Port,
@@ -235,7 +235,7 @@ func (h *Handlers) setupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, models.SetupResponse{
+	writeJSON(w, http.StatusOK, api.SetupResponse{
 		OK:         true,
 		Configured: true,
 		Message:    "Setup complete",
@@ -250,7 +250,7 @@ func (h *Handlers) GetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, models.ConfigResponse{
+	writeJSON(w, http.StatusOK, api.ConfigResponse{
 		OK:     true,
 		Config: *cfg,
 	})

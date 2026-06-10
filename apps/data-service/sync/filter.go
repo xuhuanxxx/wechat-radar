@@ -1,9 +1,12 @@
 package sync
 
-import "github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
+import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
+)
 
 // ShouldSyncChat checks if a chat should be synced based on filter config
-func (e *Engine) ShouldSyncChat(chat models.LarkChat, cfg *models.Config) bool {
+func (e *Engine) ShouldSyncChat(chat models.LarkChat, cfg *api.Config) bool {
 	if cfg == nil {
 		return true
 	}

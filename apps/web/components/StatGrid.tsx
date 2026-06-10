@@ -1,14 +1,8 @@
 import Link from 'next/link';
 import { Activity, MessageCircle, AtSign, MoonStar } from 'lucide-react';
+import type { Schemas } from '@/lib/api-client';
 
-export interface CardsData {
-  active_groups: number;
-  total_groups: number;
-  total_messages: number;
-  mentions: number;
-  silent_groups: number;
-  avg_per_group: number;
-}
+export type CardsData = Schemas['CardsData'];
 
 export default function StatGrid({ cards, days }: { cards?: CardsData; days: number }) {
   return (
