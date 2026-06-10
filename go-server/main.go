@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,8 +20,18 @@ import (
 const version = "0.1.0"
 
 func main() {
+	// Parse command line flags
+	var (
+		dataDirFlag = flag.String("data-dir", "", "Data directory (default: ~/.lark-radar)")
+		portFlag    = flag.Int("port", 0, "HTTP port (overrides config)")
+	)
+	flag.Parse()
+
 	// Determine data directory
-	dataDir := os.Getenv("LARK_RADAR_DATA_DIR")
+	dataDir := *dataDirFlag
+	if dataDir == "" {
+		dataDir = os.Getenv("LARK_RADAR_DATA_DIR")
+	}
 	if dataDir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -111,10 +122,13 @@ func main() {
 	// Wrap with CORS and logging
 	handler := withCORS(withLogging(mux))
 
-	// Determine port
+	// Determine port: flag > config > default
 	port := 8787
 	if cfg, err := configMgr.Load(); err == nil && cfg.Port > 0 {
 		port = cfg.Port
+	}
+	if *portFlag > 0 {
+		port = *portFlag
 	}
 
 	server := &http.Server{
