@@ -163,7 +163,7 @@ function dateList(since: string, until: string): string[] {
 
 /**
  * 全量同步：每群按月分批拉取历史消息 → 本地存 messages → 本地聚合 daily_stats。
- * 注：此版本已移除 wx-cli 依赖，仅保留本地 DB 聚合逻辑供 lark 同步后使用。
+ * 注：仅保留本地 DB 聚合逻辑供 lark 同步后使用。
  */
 export async function syncFullHistory({
   targets,
@@ -325,7 +325,7 @@ export async function syncFullHistory({
 }
 
 /**
- * 兼容旧调用：单天 stats 模式（已移除 wx 依赖，改为本地 DB 聚合）
+ * 兼容旧调用：单天 stats 模式（本地 DB 聚合）
  */
 export interface RescanOptions {
   targets: RescanTarget[];

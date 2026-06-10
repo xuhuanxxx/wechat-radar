@@ -8,6 +8,7 @@ import TrendChart, { type TrendPoint } from '@/components/TrendChart';
 import ActiveGroupsList, { type ActiveGroup } from '@/components/ActiveGroupsList';
 import CategoryChart, { type CategoryStat } from '@/components/CategoryChart';
 import IntelligenceBrief, { type DashboardIntelligence } from '@/components/IntelligenceBrief';
+import { apiFetch } from '@/lib/api-client';
 
 type StatsResponse = {
   ok: boolean;
@@ -34,7 +35,7 @@ export default function Page() {
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch('/api/setup', { cache: 'no-store' });
+        const r = await apiFetch('/api/setup', { cache: 'no-store' });
         const j = await r.json();
         if (!cancelled && j.ok && !j.configured) {
           window.location.href = '/setup';
@@ -69,7 +70,7 @@ export default function Page() {
           setRescanning(true);
           setRescanInfo('飞书同步启动…');
           try {
-            const r = await fetch('/api/lark/sync', {
+            const r = await apiFetch('/api/lark/sync', {
               method: 'POST',
               headers: { 'content-type': 'application/json' },
               body: JSON.stringify({ days_back: defaultSyncDaysForRange(range) }),
@@ -96,6 +97,7 @@ export default function Page() {
 
         const j = await fetchStats(range, date);
         if (!cancelled) setStats(j);
+        if (!cancelled) setStats(j);
       } catch (e) {
         console.error(e);
       }
@@ -112,7 +114,7 @@ export default function Page() {
         setRescanning(true);
         setRescanInfo('飞书同步启动…');
         try {
-          const r = await fetch('/api/lark/sync', {
+          const r = await apiFetch('/api/lark/sync', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
@@ -166,7 +168,7 @@ export default function Page() {
       setRescanning(true);
       setRescanInfo(full ? '全量同步启动…（365 天，预计 8-15 分钟）' : '启动重扫…');
       try {
-        const r = await fetch('/api/rescan', {
+        const r = await apiFetch('/api/rescan', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(full ? { full: true } : { range, anchorDate: date }),
@@ -302,7 +304,7 @@ function infoLine(stats: StatsResponse | null) {
 }
 
 async function fetchStats(range: RangeKey, date: string): Promise<StatsResponse> {
-  const r = await fetch(`/api/stats?range=${range}&date=${date}`, { cache: 'no-store' });
+  const r = await apiFetch(`/api/stats?range=${range}&date=${date}`, { cache: 'no-store' });
   const text = await r.text();
   if (!text.trim()) {
     throw new Error(`/api/stats returned an empty response (${r.status})`);

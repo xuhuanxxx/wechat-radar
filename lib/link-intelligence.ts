@@ -236,7 +236,6 @@ function titleFromContext(content: string, url: string): string {
 function decodeTitle(raw: string): string {
   return decodeHtmlEntities(raw)
     .replace(/\s+/g, ' ')
-    .replace(/ - 微信公众平台$/, '')
     .replace(/_哔哩哔哩_bilibili$/, '')
     .trim()
     .slice(0, 120);

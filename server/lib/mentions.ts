@@ -121,7 +121,7 @@ function ensureMentionIndexCurrent() {
 }
 
 /**
- * 扫描 mentions（已移除 wx-cli 依赖，改为从本地 messages 表扫描）
+ * 扫描 mentions（从本地 messages 表扫描）
  */
 export async function scanMentions(
   chatroomId: string,

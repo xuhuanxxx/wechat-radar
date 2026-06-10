@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import MessageContent from '@/components/MessageContent';
 import { AtSign, ChevronRight, Search } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 type MentionItem = {
   chatroom_id: string;
@@ -35,7 +36,7 @@ export default function MentionsPage() {
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch('/api/mentions?limit=5000');
+        const r = await apiFetch('/api/mentions?limit=5000');
         const j = (await r.json()) as MentionsResp;
         if (!cancelled && j.ok) setData(j);
       } catch {}

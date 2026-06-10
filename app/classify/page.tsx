@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { ArrowLeft, Sparkles, Check } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 type Group = { id: number; name: string; color: string; emoji: string | null };
 type Suggestion = {
@@ -23,7 +24,7 @@ export default function ClassifyPage() {
   const [msg, setMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const r = await fetch('/api/ai-classify');
+    const r = await apiFetch('/api/ai-classify');
     const j = await r.json();
     if (j.ok) {
       setGroups(j.groups);
@@ -51,7 +52,7 @@ export default function ClassifyPage() {
       setBusy(false);
       return;
     }
-    const r = await fetch('/api/ai-classify', {
+    const r = await apiFetch('/api/ai-classify', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ picks: list }),

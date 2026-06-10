@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 const COLORS = [
   '#ef4444',
@@ -39,7 +40,7 @@ export default function NewGroupModal({
     setBusy(true);
     setErr(null);
     try {
-      const r = await fetch('/api/groups', {
+      const r = await apiFetch('/api/groups', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), color, emoji: emoji.trim() || undefined }),

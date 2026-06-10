@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { Activity, Pause, Play } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 type StreamMessage = {
   local_id: number;
@@ -37,7 +38,7 @@ export default function SignalsPage() {
     ctlRef.current = ctl;
     (async () => {
       try {
-        const r = await fetch('/api/new-messages', { signal: ctl.signal });
+        const r = await apiFetch('/api/new-messages', { signal: ctl.signal });
         if (!r.body) return;
         const reader = r.body.getReader();
         const dec = new TextDecoder();

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import MessageContent from '@/components/MessageContent';
 import { Sparkles, RefreshCw, Calendar } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 type Topic = {
   id: number;
@@ -46,7 +47,7 @@ export default function TopicsPage() {
 
   const reload = useCallback(async () => {
     try {
-      const r = await fetch(`/api/topics?date=${date}`);
+      const r = await apiFetch(`/api/topics?date=${date}`);
       const j = await r.json();
       if (j.ok) setTopics(j.topics);
     } catch {}
@@ -56,7 +57,7 @@ export default function TopicsPage() {
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch(`/api/topics?date=${date}`);
+        const r = await apiFetch(`/api/topics?date=${date}`);
         const j = await r.json();
         if (!cancelled && j.ok) setTopics(j.topics);
       } catch {}
@@ -72,7 +73,7 @@ export default function TopicsPage() {
     }
     let cancelled = false;
     (async () => {
-      const r = await fetch(`/api/topics/${selected}`);
+      const r = await apiFetch(`/api/topics/${selected}`);
       const j = await r.json();
       if (!cancelled && j.ok) {
         setDetail({
@@ -99,7 +100,7 @@ export default function TopicsPage() {
     setBusy(true);
     setInfo('启动 Codex CLI 话题聚合…');
     try {
-      const r = await fetch('/api/topics/build', {
+      const r = await apiFetch('/api/topics/build', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ date }),

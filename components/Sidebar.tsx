@@ -12,6 +12,7 @@ import {
   Link2,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
+import { apiFetch } from '@/lib/api-client';
 
 type Category = {
   id: number;
@@ -36,12 +37,12 @@ export default function Sidebar() {
   useEffect(() => {
     const load = async () => {
       try {
-        const r = await fetch('/api/sessions');
+        const r = await apiFetch('/api/sessions');
         const j = await r.json();
         setData(j);
       } catch {}
       try {
-        const r = await fetch('/api/stats?range=week');
+        const r = await apiFetch('/api/stats?range=week');
         const j = await r.json();
         if (j.ok && j.sidebar_counts) {
           setUnsorted(j.sidebar_counts.unsorted);

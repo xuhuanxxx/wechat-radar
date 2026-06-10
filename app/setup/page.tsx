@@ -10,7 +10,9 @@ import {
   MessageCircle,
   Filter,
   Search,
+  Server,
 } from 'lucide-react';
+import { apiFetch, getDataApiUrl, setDataApiUrl } from '@/lib/api-client';
 
 type SourceType = 'lark' | 'demo';
 
@@ -72,10 +74,13 @@ export default function SetupPage() {
   const [chatSearch, setChatSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dataApiUrl, setDataApiUrlState] = useState('');
+  const [dataUrlError, setDataUrlError] = useState<string | null>(null);
 
   useEffect(() => {
+    setDataApiUrlState(getDataApiUrl());
     (async () => {
-      const res = await fetch('/api/setup', { cache: 'no-store' });
+      const res = await apiFetch('/api/setup', { cache: 'no-store' });
       const json = (await res.json()) as SetupStatus;
       setStatus(json);
       setNames(json.config.myNicknames.join(', '));
@@ -101,7 +106,7 @@ export default function SetupPage() {
     setLarkChatsLoading(true);
     setLarkChatsError(null);
     try {
-      const res = await fetch('/api/lark/chats', { cache: 'no-store' });
+      const res = await apiFetch('/api/lark/chats', { cache: 'no-store' });
       const json = await res.json();
       if (!res.ok || !json.ok) throw new Error(json.error || '获取群列表失败');
       setLarkChats(json.chats);
@@ -142,7 +147,7 @@ export default function SetupPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch('/api/setup', {
+      const res = await apiFetch('/api/setup', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -165,6 +170,28 @@ export default function SetupPage() {
       setError(e instanceof Error ? e.message : '保存失败');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function testDataUrl() {
+    setDataUrlError(null);
+    if (!dataApiUrl.trim()) {
+      setDataApiUrl('');
+      setDataApiUrlState('');
+      return;
+    }
+    try {
+      const url = new URL(dataApiUrl);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        throw new Error('URL 必须以 http:// 或 https:// 开头');
+      }
+      const res = await fetch(`${dataApiUrl.replace(/\/$/, '')}/api/setup`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`连接失败 (${res.status})`);
+      setDataApiUrl(dataApiUrl.trim());
+      setDataApiUrlState(dataApiUrl.trim());
+      setDataUrlError('连接成功');
+    } catch (e) {
+      setDataUrlError(e instanceof Error ? e.message : '连接失败');
     }
   }
 
@@ -313,6 +340,29 @@ export default function SetupPage() {
                 我确认本工具仅用于个人数据分析，所有消息内容仅保存在本地数据库，不会上传到任何第三方服务器。
               </span>
             </label>
+          </section>
+
+          <section className="card p-5 lg:col-span-2">
+            <SectionTitle icon={<Server size={15} />} title="数据服务地址" />
+            <p className="mt-2 text-[12px] text-[var(--text-3)]">
+              如果 Web 前端和数据服务不在同一域名，请填写数据服务地址（如 http://localhost:8787）。留空则使用当前域名。
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <input
+                value={dataApiUrl}
+                onChange={(e) => setDataApiUrlState(e.target.value)}
+                placeholder="http://localhost:8787"
+                className="control-surface flex-1 rounded-md px-3 py-2 text-[13px] outline-none"
+              />
+              <button className="btn text-[12px]" onClick={testDataUrl}>
+                测试连接
+              </button>
+            </div>
+            {dataUrlError && (
+              <p className={`mt-2 text-[12px] ${dataUrlError === '连接成功' ? 'text-[var(--accent)]' : 'text-[var(--danger)]'}`}>
+                {dataUrlError}
+              </p>
+            )}
           </section>
 
           {effectiveSource === 'lark' && (

@@ -59,7 +59,7 @@ export function domainOf(url: string): string {
   }
 }
 
-function isWechatArticleUrl(url: string): boolean {
+function isExternalArticleUrl(url: string): boolean {
   try {
     const u = new URL(cleanUrl(url));
     return u.hostname === 'mp.weixin.qq.com' && (/^\/s\/?/.test(u.pathname) || u.searchParams.has('__biz'));
@@ -112,13 +112,13 @@ export function extractMessageLinks(content: string): ParsedMessageLink[] {
 
   for (const tag of ['url', 'lowurl']) {
     const url = tagText(decoded, tag);
-    if (url && isWechatArticleUrl(url)) {
+    if (url && isExternalArticleUrl(url)) {
       candidates.push({ url, source: 'lark_raw', raw_kind: `appmsg_${tag}`, confidence: 1 });
     }
   }
 
   for (const value of attrValues(decoded, 'url')) {
-    if (!isWechatArticleUrl(value)) continue;
+    if (!isExternalArticleUrl(value)) continue;
       candidates.push({
         url: value,
         source: hasXml ? 'lark_raw' : 'plain_url',
@@ -129,7 +129,7 @@ export function extractMessageLinks(content: string): ParsedMessageLink[] {
 
   for (const m of decoded.matchAll(/https?:\/\/[^\s<>"']+/g)) {
     const rawUrl = cleanUrl(m[0]);
-    const article = isWechatArticleUrl(rawUrl);
+    const article = isExternalArticleUrl(rawUrl);
     const source: MessageLinkSource = hasXml && article ? 'lark_raw' : 'plain_url';
     candidates.push({
       url: rawUrl,

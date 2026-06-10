@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { Star, ChevronRight, Search } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 type Group = {
   chatroom_id: string;
@@ -42,14 +43,14 @@ function GroupsListContent() {
   const [bumping, setBumping] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const r = await fetch('/api/sessions');
+    const r = await apiFetch('/api/sessions');
     setData(await r.json());
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const r = await fetch('/api/sessions');
+      const r = await apiFetch('/api/sessions');
       const json = (await r.json()) as SessionsResp;
       if (!cancelled) setData(json);
     })();
@@ -86,7 +87,7 @@ function GroupsListContent() {
 
   const toggleFav = async (chatroomId: string, current: boolean) => {
     setBumping(chatroomId);
-    await fetch('/api/group-tags', {
+    await apiFetch('/api/group-tags', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ chatroom_id: chatroomId, fav: !current }),

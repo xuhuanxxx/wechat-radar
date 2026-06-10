@@ -2,14 +2,14 @@
 // Lark sync CLI script.
 // Can be run manually or scheduled via cron.
 // Environment:
-//   WECHAT_RADAR_LARK_API_URL - base URL of the running Next.js app (default: http://localhost:3000)
-//   WECHAT_RADAR_LARK_CHAT_ID - optional, sync only one chat
-//   WECHAT_RADAR_LARK_DAYS_BACK - how many days back to fetch on first sync (default: 7)
+//   LARK_RADAR_LARK_API_URL - base URL of the running Next.js app (default: http://localhost:3000)
+//   LARK_RADAR_LARK_CHAT_ID - optional, sync only one chat
+//   LARK_RADAR_LARK_DAYS_BACK - how many days back to fetch on first sync (default: 7)
 
 async function main() {
-  const baseUrl = process.env.WECHAT_RADAR_LARK_API_URL || 'http://localhost:3000';
-  const chatId = process.env.WECHAT_RADAR_LARK_CHAT_ID || undefined;
-  const daysBack = Number(process.env.WECHAT_RADAR_LARK_DAYS_BACK || 7);
+  const baseUrl = process.env.LARK_RADAR_LARK_API_URL || 'http://localhost:3000';
+  const chatId = process.env.LARK_RADAR_LARK_CHAT_ID || undefined;
+  const daysBack = Number(process.env.LARK_RADAR_LARK_DAYS_BACK || 7);
 
   console.log(`[${new Date().toISOString()}] Lark sync started -> ${baseUrl}/api/lark/sync`);
 
