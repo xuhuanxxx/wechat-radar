@@ -126,12 +126,24 @@ Lark Radar 默认只在本机读写数据：
 ## 项目结构
 
 ```text
-app/                 Next.js App Router 页面与 API
-components/          看板、侧边栏、图表、消息渲染组件
-lib/                 lark-cli 封装、SQLite、话题/链接聚合逻辑
-scripts/             本地维护脚本
-docs/assets/         README 图片与公开素材
+apps/
+  web/               Next.js 16 前端（@lark-radar/web）
+    app/             App Router 页面与 catch-all API 代理
+    components/      看板、侧边栏、图表、消息渲染组件
+    lib/             api-client、日期工具等纯前端工具
+    Dockerfile       Web 镜像构建（构建上下文 = 仓库根）
+  data-service/      Go 数据服务（lark-cli + SQLite，仅 macOS）
+    main.go          HTTP 路由表
+    handlers/        每个 API 端点的实现
+    models/          数据模型
+    sync/            lark-cli 调用与同步引擎
+  macos-menu/        Swift 菜单栏，监管 data-service 进程
+packages/            预留给跨语言契约包（OpenAPI 等）
+docs/                架构与开发文档
+scripts/             发布脚本（build-macos-app.sh 等）
 ```
+
+`pnpm-workspace.yaml` 在仓库根。所有日常脚本（`pnpm dev` / `build` / `lint`）也都在根目录运行，会通过 `pnpm --filter @lark-radar/web` 转发到对应子包。
 
 ## 常见问题
 

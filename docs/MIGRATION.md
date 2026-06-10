@@ -20,21 +20,21 @@
 
 | 模块 | 当前位置 | 目标位置 | 复杂度 |
 |------|----------|----------|--------|
-| HTTP 路由 | `app/api/` | `go-server/api/` | 低 |
-| SQLite 连接 | `lib/db.ts` | `go-server/db/` | 低 |
-| 数据模型 | `lib/*.ts` (interface) | `go-server/models/` | 低 |
-| 飞书调用 | `lib/lark.ts` | `go-server/services/lark.go` | 中 |
-| 同步引擎 | `lib/lark-sync.ts` | `go-server/services/lark_sync.go` | 高 |
-| 消息存储 | `lib/messages-store.ts` | `go-server/services/` | 中 |
-| 统计聚合 | `lib/stats-aggregator.ts` | `go-server/services/` | 中 |
-| @提及检测 | `lib/mentions.ts` | `go-server/services/mentions.go` | 中 |
-| Dashboard 情报 | `lib/dashboard-intelligence.ts` | `go-server/services/intelligence.go` | 高 |
-| 链接情报 | `lib/link-intelligence.ts` | `go-server/services/link_intel.go` | 高 |
-| 话题聚合 | `lib/topics.ts` | `go-server/services/topics.go` | 高 |
-| 群分类 | `lib/group-classifier.ts` | `go-server/services/classifier.go` | 低 |
-| 缓存层 | `lib/cache.ts` | `go-server/cache/` | 低 |
-| 配置管理 | `lib/config.ts` | `go-server/services/config.go` | 低 |
-| 日期工具 | `lib/range.ts` | `go-server/utils/range.go` | 低 |
+| HTTP 路由 | `app/api/` | `apps/data-service/api/` | 低 |
+| SQLite 连接 | `lib/db.ts` | `apps/data-service/db/` | 低 |
+| 数据模型 | `lib/*.ts` (interface) | `apps/data-service/models/` | 低 |
+| 飞书调用 | `lib/lark.ts` | `apps/data-service/services/lark.go` | 中 |
+| 同步引擎 | `lib/lark-sync.ts` | `apps/data-service/services/lark_sync.go` | 高 |
+| 消息存储 | `lib/messages-store.ts` | `apps/data-service/services/` | 中 |
+| 统计聚合 | `lib/stats-aggregator.ts` | `apps/data-service/services/` | 中 |
+| @提及检测 | `lib/mentions.ts` | `apps/data-service/services/mentions.go` | 中 |
+| Dashboard 情报 | `lib/dashboard-intelligence.ts` | `apps/data-service/services/intelligence.go` | 高 |
+| 链接情报 | `lib/link-intelligence.ts` | `apps/data-service/services/link_intel.go` | 高 |
+| 话题聚合 | `lib/topics.ts` | `apps/data-service/services/topics.go` | 高 |
+| 群分类 | `lib/group-classifier.ts` | `apps/data-service/services/classifier.go` | 低 |
+| 缓存层 | `lib/cache.ts` | `apps/data-service/cache/` | 低 |
+| 配置管理 | `lib/config.ts` | `apps/data-service/services/config.go` | 低 |
+| 日期工具 | `lib/range.ts` | `apps/data-service/utils/range.go` | 低 |
 
 ### 不需要迁移的模块
 
@@ -51,7 +51,7 @@
 **目标**: 搭建 Go 项目框架，实现基础 HTTP 服务和数据库连接
 
 **任务清单:**
-- [ ] 创建 `go-server/` 目录结构
+- [ ] 创建 `apps/data-service/` 目录结构
 - [ ] 初始化 Go module
 - [ ] 实现 `main.go` HTTP server
 - [ ] 实现 `db/db.go` SQLite 连接（复制现有 pragmas）
@@ -63,7 +63,7 @@
 
 **验证:**
 ```bash
-cd go-server
+cd apps/data-service
 go run main.go
 # 应启动成功，监听 :3456
 curl http://localhost:3456/health
@@ -156,7 +156,7 @@ curl "http://localhost:3456/api/topics/links?date=2026-06-09"
 **验证:**
 ```bash
 # 启动 Go 服务
-cd go-server && go run main.go
+cd apps/data-service && go run main.go
 
 # 启动 Web
 DATA_API_URL=http://localhost:3456 pnpm dev

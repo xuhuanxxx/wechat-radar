@@ -33,7 +33,7 @@ Lark Radar 由两个独立组件组成：
 ### 1.2 构建 Go 二进制
 
 ```bash
-cd go-server
+cd apps/data-service
 
 # 本地开发
 go build -o lark-radar-server main.go
@@ -62,7 +62,7 @@ nohup ./lark-radar-server > server.log 2>&1 &
 
 ```bash
 # 1. 构建 Go 二进制
-cd go-server
+cd apps/data-service
 go build -ldflags="-s -w" -o ../dist/lark-radar-server main.go
 
 # 2. 构建 Swift 菜单栏
