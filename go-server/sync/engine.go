@@ -58,6 +58,43 @@ func (e *Engine) GetStatus() *SyncStatus {
 	return e.status
 }
 
+// SyncChat syncs a single chat by ID
+func (e *Engine) SyncChat(chatID string, daysBack int) (models.SyncResult, error) {
+	e.mu.Lock()
+	if e.status.Running {
+		e.mu.Unlock()
+		return models.SyncResult{}, fmt.Errorf("sync already in progress")
+	}
+	e.status.Running = true
+	e.status.StartedAt = time.Now()
+	e.status.CompletedAt = time.Time{}
+	e.status.Progress = make(map[string]int)
+	e.status.Results = make(map[string]models.SyncResult)
+	e.status.Error = ""
+	e.mu.Unlock()
+
+	defer func() {
+		e.mu.Lock()
+		e.status.Running = false
+		e.status.CompletedAt = time.Now()
+		e.mu.Unlock()
+	}()
+
+	result, err := e.doSyncChat(chatID, daysBack)
+	if err != nil {
+		e.mu.Lock()
+		e.status.Error = err.Error()
+		e.mu.Unlock()
+	}
+
+	e.mu.Lock()
+	e.status.Progress[chatID] = 100
+	e.status.Results[chatID] = result
+	e.mu.Unlock()
+
+	return result, err
+}
+
 // SyncAll syncs all chats for the given days back
 func (e *Engine) SyncAll(daysBack int) (map[string]models.SyncResult, error) {
 	e.mu.Lock()
@@ -105,7 +142,7 @@ func (e *Engine) SyncAll(daysBack int) (map[string]models.SyncResult, error) {
 			e.status.Progress[c.ChatID] = 0
 			e.mu.Unlock()
 
-			result, err := e.syncChat(c.ChatID, daysBack)
+			result, err := e.doSyncChat(c.ChatID, daysBack)
 
 			mu.Lock()
 			if err != nil {
@@ -184,7 +221,12 @@ func (e *Engine) shouldSyncChat(chat models.LarkChat, cfg *models.Config) bool {
 	return true
 }
 
-func (e *Engine) syncChat(chatID string, daysBack int) (models.SyncResult, error) {
+// FetchChats returns the list of chats available for sync
+func (e *Engine) FetchChats() ([]models.LarkChat, error) {
+	return e.fetchChats()
+}
+
+func (e *Engine) doSyncChat(chatID string, daysBack int) (models.SyncResult, error) {
 	result := models.SyncResult{}
 
 	// Calculate start time

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"go-server/models"
 )
@@ -59,6 +60,16 @@ func (h *Handlers) GroupDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	date := r.URL.Query().Get("date")
+	limitStr := r.URL.Query().Get("limit")
+	limit := 50
+	if v, err := strconv.Atoi(limitStr); err == nil && v > 0 {
+		limit = v
+		if limit > 200 {
+			limit = 200
+		}
+	}
+
 	var name string
 	var memberCount int
 	err := h.db.QueryRow("SELECT name, member_count FROM groups WHERE chatroom_id = ?", chatroomID).Scan(&name, &memberCount)
@@ -84,13 +95,59 @@ func (h *Handlers) GroupDetail(w http.ResponseWriter, r *http.Request) {
 		tags = append(tags, tag)
 	}
 
-	writeJSON(w, http.StatusOK, models.GroupDetailResponse{
+	// Build response
+	resp := models.GroupDetailResponse{
 		OK:          true,
 		ChatroomID:  chatroomID,
 		Name:        name,
 		MemberCount: memberCount,
 		Tags:        tags,
-	})
+	}
+
+	// Get recent messages
+	msgQuery := "SELECT chatroom_id, local_id, sender, content, timestamp, type, date FROM messages WHERE chatroom_id = ?"
+	msgArgs := []interface{}{chatroomID}
+	if date != "" {
+		msgQuery += " AND date = ?"
+		msgArgs = append(msgArgs, date)
+	}
+	msgQuery += " ORDER BY timestamp DESC LIMIT ?"
+	msgArgs = append(msgArgs, limit)
+
+	msgRows, err := h.db.Query(msgQuery, msgArgs...)
+	if err == nil {
+		defer msgRows.Close()
+		recent := []models.Message{}
+		for msgRows.Next() {
+			var m models.Message
+			if err := msgRows.Scan(&m.ChatroomID, &m.LocalID, &m.Sender, &m.Content, &m.Timestamp, &m.Type, &m.Date); err != nil {
+				continue
+			}
+			recent = append(recent, m)
+		}
+		resp.Recent = recent
+	}
+
+	// Get daily history
+	histRows, err := h.db.Query(
+		"SELECT date, COUNT(*) as total, COUNT(DISTINCT sender) as unique_senders FROM messages WHERE chatroom_id = ? GROUP BY date ORDER BY date DESC LIMIT 30",
+		chatroomID,
+	)
+	if err == nil {
+		defer histRows.Close()
+		history := []models.DailyEntry{}
+		for histRows.Next() {
+			var e models.DailyEntry
+			if err := histRows.Scan(&e.Date, &e.Total, &e.UniqueSenders); err != nil {
+				continue
+			}
+			e.MessageCount = e.Total
+			history = append(history, e)
+		}
+		resp.DailyHistory = history
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // GroupTags handles group tag operations

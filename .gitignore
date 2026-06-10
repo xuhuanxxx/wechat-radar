@@ -40,3 +40,5 @@ tsconfig.tsbuildinfo
 .beads/
 CLAUDE.md
 AGENTS.md
+go-server/lark-radar-server
+go-server/go-server

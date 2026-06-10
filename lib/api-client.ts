@@ -1,12 +1,14 @@
 /**
- * Client-side API wrapper that routes requests to a user-configured data service.
+ * Client-side API wrapper that routes ALL requests through the Next.js
+ * catch-all proxy at /api/*.
  *
  * The data service URL is stored in localStorage as `lark-radar-data-url`.
- * When configured, requests go directly to the data service (CORS must be enabled).
- * When not configured, requests fall back to same-origin `/api/*`.
+ * Every request goes to the same-origin `/api/*` path with the target
+ * data service URL in the `X-Data-Api-Url` header. The Next.js proxy
+ * forwards the request to the actual Go data service.
  *
- * For the catch-all proxy route to work, the client also sends the target URL
- * in the `X-Data-Api-Url` header so the server can proxy if needed.
+ * This ensures the web frontend never directly accesses data services
+ * and works correctly in containerized deployments.
  */
 
 const STORAGE_KEY = 'lark-radar-data-url';
@@ -25,24 +27,18 @@ export function clearDataApiUrl(): void {
 }
 
 /**
- * Build the full API URL for a given path.
- * If a data service URL is configured, prepend it to the path.
- * Otherwise, return the path as-is (same-origin).
+ * Build the API URL. Always returns a same-origin `/api/*` path.
+ * The proxy route reads X-Data-Api-Url header to forward to Go.
  */
 export function buildApiUrl(path: string): string {
-  const base = getDataApiUrl();
-  if (base) {
-    const cleanBase = base.replace(/\/$/, '');
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
-    return `${cleanBase}${cleanPath}`;
-  }
-  return path;
+  // Always use same-origin path; proxy handles forwarding
+  return path.startsWith('/') ? path : `/${path}`;
 }
 
 /**
  * Get default fetch init options.
- * When a data URL is configured, we add the `X-Data-Api-Url` header
- * so the catch-all proxy can forward requests if the direct call fails.
+ * Always includes X-Data-Api-Url header so the proxy knows where
+ * to forward the request.
  */
 function defaultInit(): RequestInit {
   const base = getDataApiUrl();
@@ -66,7 +62,8 @@ function mergeInit(base: RequestInit, extra?: RequestInit): RequestInit {
 }
 
 /**
- * Low-level fetch wrapper that routes to the configured data service.
+ * Low-level fetch wrapper. Always requests same-origin /api/*
+ * which is proxied to the Go data service.
  */
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const url = buildApiUrl(path);

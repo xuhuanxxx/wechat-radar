@@ -59,6 +59,108 @@ func (h *Handlers) Topics(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// TopicDetail handles GET /api/topics/:id
+func (h *Handlers) TopicDetail(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	idStr := getPathParam(r, "/api/topics/")
+	if idStr == "" {
+		writeError(w, http.StatusBadRequest, "topic id required")
+		return
+	}
+
+	var t models.Topic
+	var messageIDs sql.NullString
+	err := h.db.QueryRow(
+		"SELECT id, chatroom_id, date, topic, category, confidence, message_ids FROM topics WHERE id = ?",
+		idStr,
+	).Scan(&t.ID, &t.ChatroomID, &t.Date, &t.Topic, &t.Category, &t.Confidence, &messageIDs)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			writeError(w, http.StatusNotFound, "Topic not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if messageIDs.Valid {
+		t.MessageIDs = messageIDs.String
+	}
+
+	writeJSON(w, http.StatusOK, models.TopicDetailResponse{
+		OK:    true,
+		Topic: t,
+	})
+}
+
+// TopicLinks handles GET /api/topics/links
+func (h *Handlers) TopicLinks(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	date := r.URL.Query().Get("date")
+	if date == "" {
+		writeError(w, http.StatusBadRequest, "date required")
+		return
+	}
+
+	// Extract links from topic-related messages for the given date
+	// MVP: find messages on the date that contain URLs and are related to topics
+	rows, err := h.db.Query(`
+		SELECT m.chatroom_id, m.local_id, m.content, m.date
+		FROM messages m
+		WHERE m.date = ? AND m.content LIKE '%http%'
+		ORDER BY m.timestamp DESC
+		LIMIT 200`,
+		date,
+	)
+	if err != nil {
+		writeJSON(w, http.StatusOK, models.TopicLinksResponse{
+			OK:    true,
+			Date:  date,
+			Links: []models.Link{},
+			Count: 0,
+		})
+		return
+	}
+	defer rows.Close()
+
+	links := []models.Link{}
+	seen := make(map[string]bool)
+	for rows.Next() {
+		var chatroomID, msgID, content, msgDate string
+		if err := rows.Scan(&chatroomID, &msgID, &content, &msgDate); err != nil {
+			continue
+		}
+		urls := urlRegex.FindAllString(content, -1)
+		for _, url := range urls {
+			key := chatroomID + "|" + url
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			links = append(links, models.Link{
+				ChatroomID: chatroomID,
+				MessageID:  msgID,
+				URL:        url,
+				Date:       msgDate,
+			})
+		}
+	}
+
+	writeJSON(w, http.StatusOK, models.TopicLinksResponse{
+		OK:    true,
+		Date:  date,
+		Links: links,
+		Count: len(links),
+	})
+}
+
 // AnalyzeTopics triggers topic analysis
 func (h *Handlers) AnalyzeTopics(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {

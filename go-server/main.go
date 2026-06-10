@@ -84,30 +84,32 @@ func main() {
 	mux.HandleFunc("/api/sessions", h.Sessions)
 	mux.HandleFunc("/api/sessions/", h.SessionDetail)
 
-	// Groups
-	mux.HandleFunc("/api/groups", h.Groups)
-	mux.HandleFunc("/api/groups/", h.GroupDetail)
+	// Groups (more specific first)
 	mux.HandleFunc("/api/groups/tags", h.GroupTags)
+	mux.HandleFunc("/api/groups/", h.GroupDetail)
+	mux.HandleFunc("/api/groups", h.Groups)
 
 	// Sync
 	mux.HandleFunc("/api/sync", h.Sync)
 	mux.HandleFunc("/api/sync/progress", h.SyncProgress)
 
-	// Topics
-	mux.HandleFunc("/api/topics", h.Topics)
+	// Topics (more specific first)
 	mux.HandleFunc("/api/topics/analyze", h.AnalyzeTopics)
+	mux.HandleFunc("/api/topics/links", h.TopicLinks)
+	mux.HandleFunc("/api/topics/", h.TopicDetail)
+	mux.HandleFunc("/api/topics", h.Topics)
 
 	// Mentions
-	mux.HandleFunc("/api/mentions", h.Mentions)
 	mux.HandleFunc("/api/mentions/stats", h.MentionStats)
+	mux.HandleFunc("/api/mentions", h.Mentions)
 
 	// Links
-	mux.HandleFunc("/api/links", h.Links)
 	mux.HandleFunc("/api/links/analyze", h.AnalyzeLinks)
+	mux.HandleFunc("/api/links", h.Links)
 
 	// Favorites
-	mux.HandleFunc("/api/favorites", h.Favorites)
 	mux.HandleFunc("/api/favorites/toggle", h.ToggleFavorite)
+	mux.HandleFunc("/api/favorites", h.Favorites)
 
 	// Reports
 	mux.HandleFunc("/api/reports/generate", h.GenerateReport)
@@ -116,8 +118,22 @@ func main() {
 	mux.HandleFunc("/api/search", h.Search)
 
 	// Lark specific
-	mux.HandleFunc("/api/lark/chats", h.LarkChats)
+	mux.HandleFunc("/api/lark/sync", h.LarkSync)
 	mux.HandleFunc("/api/lark/messages", h.LarkMessages)
+	mux.HandleFunc("/api/lark/chats", h.LarkChats)
+
+	// AI Classify
+	mux.HandleFunc("/api/ai-classify", h.AIClassify)
+
+	// Message Links
+	mux.HandleFunc("/api/message-links/raw", h.MessageLinksRaw)
+	mux.HandleFunc("/api/message-links/backfill", h.MessageLinksBackfill)
+	mux.HandleFunc("/api/message-links/resolve", h.MessageLinksResolve)
+
+	// Extra handlers
+	mux.HandleFunc("/api/new-messages", h.NewMessages)
+	mux.HandleFunc("/api/rescan", h.Rescan)
+	mux.HandleFunc("/api/wx-image", h.WXImage)
 
 	// Wrap with CORS and logging
 	handler := withCORS(withLogging(mux))
