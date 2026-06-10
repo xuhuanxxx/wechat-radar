@@ -85,13 +85,19 @@ async function proxyRequest(req: NextRequest, method: string) {
   }
 
   try {
+    // Use AbortController for long-running requests (sync can take 30s+)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120_000); // 120s timeout
+
     const upstream = await fetch(targetUrl.toString(), {
       method,
       headers: forwardHeaders,
       body,
-      // Do not follow redirects automatically so the client sees them
       redirect: 'manual',
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     // Build response, forwarding status and headers
     const responseHeaders = new Headers();
