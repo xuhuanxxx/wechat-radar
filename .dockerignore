@@ -1,60 +1,55 @@
-# Git
+# Build context = repo root. Web Dockerfile only needs apps/web + workspace manifests.
+
 .git
 .gitignore
 
-# Node modules (installed in container)
+# Installed dependencies — pnpm reinstalls inside the image.
 node_modules
+**/node_modules
 
-# Build outputs
-.next
+# Next.js / build outputs
+**/.next
+**/out
 dist
-out
 
-# Development
+# Local env / runtime data
 .env
 .env.local
 .env.*.local
+data
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.sqlite*
 
 # Logs
 *.log
 npm-debug.log*
 pnpm-debug.log*
 
-# OS
+# OS / IDE
 .DS_Store
 Thumbs.db
-
-# IDE
 .vscode
 .idea
 *.swp
 *.swo
 
-# Test coverage
-coverage
-.nyc_output
+# Sibling apps not needed by the web image
+apps/data-service
+apps/macos-menu
 
-# Documentation (not needed in container)
+# Project metadata not needed inside the image
 docs
-
-# Scripts (not needed in container)
 scripts
-
-# Go server (separate service, not in web container)
-go-server
-src-tauri
-
-# macOS app build output
-dist
-
-# Misc
 README.md
 DISCLAIMER.md
 PRIVACY.md
 SECURITY.md
 LICENSE
-MIGRATION.md
-DEVELOPMENT.md
-API_SPEC.md
-ARCHITECTURE.md
-DEPLOYMENT.md
+CLAUDE.md
+AGENTS.md
+
+# Test coverage
+coverage
+.nyc_output
