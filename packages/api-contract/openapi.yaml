@@ -1,0 +1,1401 @@
+openapi: 3.0.3
+info:
+  title: Lark Radar Data Service
+  version: 0.1.0
+  description: |
+    The local HTTP API exposed by `apps/data-service` (Go) and consumed by
+    `apps/web` (Next.js). This document is the single source of truth — both
+    the TypeScript types in `apps/web` and the Go types in
+    `apps/data-service/api/types.gen.go` are generated from this file.
+
+    Conventions:
+      * Every response is wrapped in an envelope `{ ok: bool, ... }`. On
+        `ok: false`, an `error` field is present with a human-readable
+        message; other fields may also be present alongside the error.
+      * Times in the wire are either ISO-ish date strings (`YYYY-MM-DD`),
+        Unix epoch seconds in `timestamp` / `last_synced_at` fields, or
+        opaque display strings in `time`.
+      * The `Sidecar/Source/Range` query parameters are forgiving — invalid
+        values fall back to defaults rather than 400.
+
+servers:
+  - url: http://localhost:3456
+    description: Local Go data service (default port)
+
+paths:
+  /api/health:
+    get:
+      summary: Liveness probe
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthResponse" }
+
+  /api/doctor:
+    get:
+      summary: Run environment checks (DB, config, lark-cli)
+      operationId: getDoctor
+      responses:
+        "200":
+          description: Check results
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DoctorResponse" }
+
+  /api/setup:
+    get:
+      summary: Current setup status
+      operationId: getSetup
+      responses:
+        "200":
+          description: Setup status and config
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SetupStatus" }
+    post:
+      summary: Save setup
+      operationId: postSetup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetupRequest" }
+      responses:
+        "200":
+          description: Setup saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SetupResponse" }
+        "400":
+          description: Validation error (e.g. missing nicknames)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SetupResponse" }
+
+  /api/config:
+    get:
+      summary: Current config
+      operationId: getConfig
+      responses:
+        "200":
+          description: Config payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConfigResponse" }
+
+  /api/stats:
+    get:
+      summary: Dashboard stats for a time range
+      operationId: getStats
+      parameters:
+        - { in: query, name: range, schema: { type: string, default: "7d" }, description: "Range key (day/week/month/quarter/year/7d/30d…)" }
+        - { in: query, name: anchorDate, schema: { type: string, format: date }, description: "Anchor date for the range, YYYY-MM-DD" }
+      responses:
+        "200":
+          description: Stats payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StatsResponse" }
+
+  /api/intelligence:
+    get:
+      summary: Period-over-period intelligence brief
+      operationId: getIntelligence
+      parameters:
+        - { in: query, name: range, schema: { type: string, default: "7d" } }
+      responses:
+        "200":
+          description: Brief
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntelligenceBrief" }
+
+  /api/sessions:
+    get:
+      summary: List sessions (chatrooms) with last-active metadata
+      operationId: getSessions
+      responses:
+        "200":
+          description: Sessions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionsResponse" }
+
+  /api/sessions/{chatroom_id}:
+    get:
+      summary: Session detail with recent messages + history
+      operationId: getSessionDetail
+      parameters:
+        - { in: path, name: chatroom_id, required: true, schema: { type: string } }
+        - { in: query, name: limit, schema: { type: integer, default: 50, maximum: 200 } }
+        - { in: query, name: date, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Session detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GroupDetail" }
+        "400":
+          description: Missing chatroom_id
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /api/groups:
+    get:
+      summary: List groups with tags
+      operationId: getGroups
+      responses:
+        "200":
+          description: Groups
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GroupsResponse" }
+
+  /api/groups/tags:
+    get:
+      summary: Tags for a single chatroom
+      operationId: getGroupTags
+      parameters:
+        - { in: query, name: chatroom_id, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Tag list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GroupTagsResponse" }
+    post:
+      summary: Attach a tag to a chatroom
+      operationId: postGroupTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GroupTagRequest" }
+      responses:
+        "200":
+          description: Tag attached
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GroupTagResponse" }
+    delete:
+      summary: Detach a tag from a chatroom
+      operationId: deleteGroupTag
+      parameters:
+        - { in: query, name: chatroom_id, required: true, schema: { type: string } }
+        - { in: query, name: tag, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Detached
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OKResponse" }
+
+  /api/groups/{chatroom_id}:
+    get:
+      summary: Group detail (stats + recent messages + history)
+      operationId: getGroupDetail
+      parameters:
+        - { in: path, name: chatroom_id, required: true, schema: { type: string } }
+        - { in: query, name: date, schema: { type: string, format: date } }
+        - { in: query, name: limit, schema: { type: integer, default: 50, maximum: 200 } }
+      responses:
+        "200":
+          description: Group detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GroupDetailResponse" }
+        "404":
+          description: Group not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /api/sync:
+    post:
+      summary: Synchronous sync (server-side blocking)
+      operationId: postSync
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SyncRequest" }
+      responses:
+        "200":
+          description: Sync result. `ok=false` may still be 200 with the failure in `error`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncResponse" }
+
+  /api/sync/progress:
+    get:
+      summary: Current sync engine status
+      operationId: getSyncProgress
+      responses:
+        "200":
+          description: Engine snapshot
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncProgressSnapshot" }
+
+  /api/topics:
+    get:
+      summary: List topics
+      operationId: getTopics
+      parameters:
+        - { in: query, name: chatroom_id, schema: { type: string } }
+        - { in: query, name: date, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Topics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TopicsResponse" }
+
+  /api/topics/analyze:
+    post:
+      summary: Run topic clustering for a chatroom on a date
+      operationId: postAnalyzeTopics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TopicAnalyzeRequest" }
+      responses:
+        "200":
+          description: Discovered topics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TopicAnalyzeResponse" }
+
+  /api/topics/links:
+    get:
+      summary: Extract links from messages on a date
+      operationId: getTopicLinks
+      parameters:
+        - { in: query, name: date, required: true, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Links
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TopicLinksResponse" }
+
+  /api/topics/{id}:
+    get:
+      summary: Single topic detail
+      operationId: getTopicDetail
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Topic
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TopicDetailResponse" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /api/mentions:
+    get:
+      summary: List mentions (capped at 100)
+      operationId: getMentions
+      parameters:
+        - { in: query, name: chatroom_id, schema: { type: string } }
+        - { in: query, name: mentioned, schema: { type: string } }
+      responses:
+        "200":
+          description: Mentions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MentionsResponse" }
+
+  /api/mentions/stats:
+    get:
+      summary: Aggregated mention counts and reverse index
+      operationId: getMentionStats
+      parameters:
+        - { in: query, name: chatroom_id, schema: { type: string } }
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MentionStats" }
+
+  /api/links:
+    get:
+      summary: List previously detected links (capped at 200)
+      operationId: getLinks
+      parameters:
+        - { in: query, name: chatroom_id, schema: { type: string } }
+        - { in: query, name: date, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Links
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LinksResponse" }
+
+  /api/links/analyze:
+    post:
+      summary: Extract and persist links for a chatroom on a date
+      operationId: postAnalyzeLinks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LinkAnalyzeRequest" }
+      responses:
+        "200":
+          description: Links discovered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LinkAnalyzeResponse" }
+
+  /api/favorites:
+    get:
+      summary: List favorites
+      operationId: getFavorites
+      parameters:
+        - { in: query, name: chatroom_id, schema: { type: string } }
+      responses:
+        "200":
+          description: Favorites
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FavoritesResponse" }
+
+  /api/favorites/toggle:
+    post:
+      summary: Toggle favorite for a message
+      operationId: postToggleFavorite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FavoriteToggleRequest" }
+      responses:
+        "200":
+          description: New favorite state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FavoriteToggleResponse" }
+        "404":
+          description: Message not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /api/reports/generate:
+    post:
+      summary: Generate a markdown daily report for a chatroom
+      operationId: postGenerateReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReportRequest" }
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReportResponse" }
+
+  /api/search:
+    get:
+      summary: LIKE-based message search
+      operationId: getSearch
+      parameters:
+        - { in: query, name: q, required: true, schema: { type: string } }
+        - { in: query, name: chatroom_id, schema: { type: string } }
+        - { in: query, name: limit, schema: { type: integer, default: 50 } }
+      responses:
+        "200":
+          description: Hits
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SearchResponse" }
+
+  /api/lark/sync:
+    post:
+      summary: Sync a chat (or all chats) via lark-cli. Optionally streams SSE.
+      operationId: postLarkSync
+      parameters:
+        - { in: query, name: stream, schema: { type: string }, description: "Set to 'true' or '1' to receive SSE progress events" }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SyncRequest" }
+      responses:
+        "200":
+          description: |
+            Non-streaming: a `SyncResponse` JSON body.
+            Streaming: `text/event-stream` with `SyncProgressEvent` payloads.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncResponse" }
+            text/event-stream:
+              schema: { type: string, description: "SSE — each event's data is a SyncProgressEvent JSON" }
+
+  /api/lark/messages:
+    get:
+      summary: Raw passthrough of `lark-cli im +chat-messages-list`
+      operationId: getLarkMessages
+      parameters:
+        - { in: query, name: chat_id, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Raw lark-cli JSON (shape varies; LarkMessagesResponse is the typical envelope)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LarkMessagesResponse" }
+        "400":
+          description: Missing chat_id
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /api/lark/chats:
+    get:
+      summary: Enumerate accessible Lark chats (filtered by config)
+      operationId: getLarkChats
+      responses:
+        "200":
+          description: Chats + active filter
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LarkChatsResponse" }
+
+  /api/ai-classify:
+    post:
+      summary: Keyword-based classification of chatrooms
+      operationId: postAIClassify
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIClassifyRequest" }
+      responses:
+        "200":
+          description: Classification results
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIClassifyResponse" }
+
+  /api/message-links/raw:
+    get:
+      summary: Raw stored links for a date
+      operationId: getMessageLinksRaw
+      parameters:
+        - { in: query, name: date, required: true, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Links
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageLinksRawResponse" }
+        "400":
+          description: Missing date
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /api/message-links/backfill:
+    post:
+      summary: Backfill links by scanning recent messages
+      operationId: postMessageLinksBackfill
+      responses:
+        "200":
+          description: Backfill counts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageLinksBackfillResponse" }
+
+  /api/message-links/resolve:
+    post:
+      summary: Resolve titles for unresolved links (up to 100 per call)
+      operationId: postMessageLinksResolve
+      responses:
+        "200":
+          description: Resolve counts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageLinksResolveResponse" }
+
+  /api/new-messages:
+    get:
+      summary: Newest messages across all chatrooms
+      operationId: getNewMessages
+      parameters:
+        - { in: query, name: limit, schema: { type: integer, default: 50 } }
+      responses:
+        "200":
+          description: Recent messages
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NewMessagesResponse" }
+
+  /api/rescan:
+    post:
+      summary: Rebuild daily_stats from messages
+      operationId: postRescan
+      responses:
+        "200":
+          description: Rescan result (always 200 — failure is reflected in `ok`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RescanResponse" }
+
+  /api/wx-image:
+    get:
+      summary: (MVP) WeChat image proxy placeholder
+      operationId: getWXImage
+      parameters:
+        - { in: query, name: url, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Currently returns a placeholder; will proxy in future.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WXImageResponse" }
+        "400":
+          description: Missing url
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WXImageResponse" }
+
+components:
+  schemas:
+    OKResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+      required: [ok]
+
+    ErrorResponse:
+      type: object
+      properties:
+        ok: { type: boolean, enum: [false] }
+        error: { type: string }
+      required: [ok, error]
+
+    HealthResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        version: { type: string }
+        service: { type: string }
+      required: [ok, version, service]
+
+    DoctorCheck:
+      type: object
+      properties:
+        name: { type: string }
+        status: { type: string }
+        message: { type: string }
+      required: [name, status]
+
+    DoctorResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        checks:
+          type: array
+          items: { $ref: "#/components/schemas/DoctorCheck" }
+      required: [ok, checks]
+
+    LarkChatFilter:
+      type: object
+      properties:
+        mode: { type: string, enum: [all, allowlist, blocklist] }
+        allowlist:
+          type: array
+          items: { type: string }
+        blocklist:
+          type: array
+          items: { type: string }
+      required: [mode]
+
+    Config:
+      type: object
+      properties:
+        myNicknames: { type: array, items: { type: string } }
+        defaultRange: { type: string }
+        port: { type: integer }
+        autoSyncInterval: { type: integer }
+        larkChatFilter: { $ref: "#/components/schemas/LarkChatFilter" }
+        demoMode: { type: boolean }
+        privacyConfirmed: { type: boolean }
+        defaultSyncDays: { type: integer }
+        source: { type: string }
+        larkCliPath: { type: string }
+        openApiKey: { type: string }
+        setupCompleted: { type: boolean }
+      required:
+        - myNicknames
+        - defaultRange
+        - port
+        - autoSyncInterval
+        - demoMode
+        - privacyConfirmed
+        - defaultSyncDays
+        - source
+        - larkCliPath
+        - openApiKey
+        - setupCompleted
+
+    SetupChecks:
+      type: object
+      properties:
+        larkInstalled: { type: boolean }
+        larkAuthenticated: { type: boolean }
+        larkError: { type: string }
+      required: [larkInstalled, larkAuthenticated]
+
+    SetupStatus:
+      type: object
+      properties:
+        ok: { type: boolean }
+        dataDir: { type: string }
+        configured: { type: boolean }
+        config: { $ref: "#/components/schemas/Config" }
+        checks: { $ref: "#/components/schemas/SetupChecks" }
+        error: { type: string }
+      required: [ok, dataDir, configured, config, checks]
+
+    SetupRequest:
+      type: object
+      properties:
+        myNicknames: { type: array, items: { type: string } }
+        defaultRange: { type: string }
+        port: { type: integer }
+        autoSyncInterval: { type: integer }
+        larkChatFilter: { $ref: "#/components/schemas/LarkChatFilter" }
+        demoMode: { type: boolean }
+        privacyConfirmed: { type: boolean }
+        defaultSyncDays: { type: integer }
+        source: { type: string }
+        larkCliPath: { type: string }
+        openApiKey: { type: string }
+      required: [myNicknames, defaultRange, demoMode, privacyConfirmed, source]
+
+    SetupResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        configured: { type: boolean }
+        message: { type: string }
+        error: { type: string }
+      required: [ok]
+
+    ConfigResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        config: { $ref: "#/components/schemas/Config" }
+      required: [ok, config]
+
+    TimeWindow:
+      type: object
+      properties:
+        since: { type: string }
+        until: { type: string }
+        days: { type: integer }
+        start_date: { type: string }
+        end_date: { type: string }
+      required: [since, until, days, start_date, end_date]
+
+    SenderCount:
+      type: object
+      properties:
+        sender: { type: string }
+        count: { type: integer }
+      required: [sender, count]
+
+    HourCount:
+      type: object
+      properties:
+        hour: { type: integer }
+        count: { type: integer }
+      required: [hour, count]
+
+    TypeCount:
+      type: object
+      properties:
+        type: { type: string }
+        count: { type: integer }
+      required: [type, count]
+
+    CardsData:
+      type: object
+      properties:
+        active_groups: { type: integer }
+        total_groups: { type: integer }
+        total_messages: { type: integer }
+        unique_senders: { type: integer }
+        mentions: { type: integer }
+        silent_groups: { type: integer }
+        avg_per_group: { type: integer }
+      required:
+        - active_groups
+        - total_groups
+        - total_messages
+        - unique_senders
+        - mentions
+        - silent_groups
+        - avg_per_group
+
+    TrendPoint:
+      type: object
+      properties:
+        date: { type: string }
+        count: { type: integer }
+      required: [date, count]
+
+    TrendData:
+      type: object
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/TrendPoint" } }
+        labels: { type: array, items: { type: string } }
+        values: { type: array, items: { type: integer } }
+        peak: { $ref: "#/components/schemas/TrendPoint" }
+        avg: { type: number }
+        total: { type: integer }
+      required: [data, labels, values, peak, avg, total]
+
+    ActiveGroup:
+      type: object
+      properties:
+        chatroom_id: { type: string }
+        name: { type: string }
+        summary: { type: string }
+        total: { type: integer }
+        message_count: { type: integer }
+        sender_count: { type: integer }
+        top_senders: { type: array, items: { $ref: "#/components/schemas/SenderCount" } }
+      required: [chatroom_id, name, summary, total, message_count, sender_count, top_senders]
+
+    CategoryStat:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        category: { type: string }
+        color: { type: string }
+        emoji: { type: string }
+        group_count: { type: integer }
+        message_count: { type: integer }
+        count: { type: integer }
+      required: [id, name, category, color, emoji, group_count, message_count, count]
+
+    SidebarCounts:
+      type: object
+      properties:
+        all: { type: integer }
+        favorites: { type: integer }
+        unsorted: { type: integer }
+      required: [all, favorites, unsorted]
+
+    StatsResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        range: { type: string }
+        window: { $ref: "#/components/schemas/TimeWindow" }
+        cards: { $ref: "#/components/schemas/CardsData" }
+        trend: { $ref: "#/components/schemas/TrendData" }
+        active_groups: { type: array, items: { $ref: "#/components/schemas/ActiveGroup" } }
+        categories: { type: array, items: { $ref: "#/components/schemas/CategoryStat" } }
+        intelligence:
+          description: "Free-form intelligence payload (shape varies)"
+          type: object
+          additionalProperties: true
+          nullable: true
+        sidebar_counts: { $ref: "#/components/schemas/SidebarCounts" }
+      required: [ok, range, window, cards, trend, active_groups, categories, sidebar_counts]
+
+    IntelligenceBrief:
+      type: object
+      properties:
+        ok: { type: boolean }
+        summary: { type: string }
+        highlights: { type: array, items: { type: string } }
+        risks: { type: array, items: { type: string } }
+        opportunities: { type: array, items: { type: string } }
+      required: [ok, summary]
+
+    CategoryInfo:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        color: { type: string }
+        emoji: { type: string }
+      required: [id, name, color, emoji]
+
+    SessionGroup:
+      type: object
+      properties:
+        chatroom_id: { type: string }
+        name: { type: string }
+        summary: { type: string }
+        time: { type: string }
+        timestamp: { type: integer, format: int64 }
+        unread: { type: integer }
+        is_favorite: { type: boolean }
+        group_ids: { type: array, items: { type: integer } }
+      required: [chatroom_id, name, summary, time, timestamp, unread, is_favorite, group_ids]
+
+    SessionsResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        total: { type: integer }
+        groups: { type: array, items: { $ref: "#/components/schemas/SessionGroup" } }
+        categories: { type: array, items: { $ref: "#/components/schemas/CategoryInfo" } }
+      required: [ok, total, groups, categories]
+
+    Message:
+      type: object
+      properties:
+        chatroom_id: { type: string }
+        local_id: { type: string }
+        sender: { type: string }
+        sender_name: { type: string }
+        content: { type: string }
+        time: { type: string }
+        timestamp: { type: integer, format: int64 }
+        type: { type: string }
+        date: { type: string }
+        source: { type: string }
+        raw: { type: string }
+      required: [chatroom_id, local_id, sender, content, time, timestamp, type, date, source]
+
+    DailyEntry:
+      type: object
+      properties:
+        date: { type: string }
+        total: { type: integer }
+        message_count: { type: integer }
+        unique_senders: { type: integer }
+      required: [date, total, message_count, unique_senders]
+
+    GroupStats:
+      type: object
+      properties:
+        chat: { type: string }
+        total: { type: integer }
+        message_count: { type: integer }
+        unique_senders: { type: integer }
+        by_hour: { type: array, items: { $ref: "#/components/schemas/HourCount" } }
+        by_type: { type: array, items: { $ref: "#/components/schemas/TypeCount" } }
+        top_senders: { type: array, items: { $ref: "#/components/schemas/SenderCount" } }
+      required: [chat, total, message_count, unique_senders, by_hour, by_type, top_senders]
+
+    SyncState:
+      type: object
+      properties:
+        chatroom_id: { type: string }
+        source: { type: string }
+        last_synced_at: { type: integer, format: int64 }
+        total_messages: { type: integer }
+        status: { type: string }
+      required: [chatroom_id, source, last_synced_at, total_messages, status]
+
+    GroupDetail:
+      type: object
+      description: "Per-session detail used by /api/sessions/{chatroom_id}"
+      properties:
+        ok: { type: boolean }
+        chatroom_id: { type: string }
+        date: { type: string }
+        stats:
+          nullable: true
+          allOf:
+            - { $ref: "#/components/schemas/GroupStats" }
+        recent: { type: array, items: { $ref: "#/components/schemas/Message" } }
+        daily_history: { type: array, items: { $ref: "#/components/schemas/DailyEntry" } }
+        sync_state:
+          nullable: true
+          allOf:
+            - { $ref: "#/components/schemas/SyncState" }
+        synced_dates: { type: array, items: { type: string } }
+      required: [ok, chatroom_id, date, recent, daily_history]
+
+    Group:
+      type: object
+      properties:
+        chatroom_id: { type: string }
+        name: { type: string }
+        member_count: { type: integer }
+        created_at: { type: string }
+      required: [chatroom_id, name]
+
+    GroupWithTags:
+      allOf:
+        - { $ref: "#/components/schemas/Group" }
+        - type: object
+          properties:
+            tags: { type: array, items: { type: string } }
+          required: [tags]
+
+    GroupsResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        groups: { type: array, items: { $ref: "#/components/schemas/GroupWithTags" } }
+      required: [ok, groups]
+
+    GroupDetailResponse:
+      type: object
+      description: "Detail used by /api/groups/{chatroom_id} (distinct from GroupDetail)"
+      properties:
+        ok: { type: boolean }
+        chatroom_id: { type: string }
+        name: { type: string }
+        member_count: { type: integer }
+        tags: { type: array, items: { type: string } }
+        stats: { $ref: "#/components/schemas/GroupStats" }
+        recent: { type: array, items: { $ref: "#/components/schemas/Message" } }
+        daily_history: { type: array, items: { $ref: "#/components/schemas/DailyEntry" } }
+      required: [ok, chatroom_id, name, tags]
+
+    GroupTagRequest:
+      type: object
+      properties:
+        chatroom_id: { type: string }
+        tag: { type: string }
+      required: [chatroom_id, tag]
+
+    GroupTagResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        tag: { type: string }
+      required: [ok, tag]
+
+    GroupTagsResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        tags: { type: array, items: { type: string } }
+      required: [ok, tags]
+
+    SyncRequest:
+      type: object
+      properties:
+        chat_id: { type: string, description: "Sync a single chat. Omit to sync all." }
+        days_back: { type: integer, default: 7 }
+        stream: { type: boolean }
+
+    SyncResult:
+      type: object
+      properties:
+        inserted: { type: integer }
+        skipped: { type: integer }
+        error: { type: string }
+      required: [inserted, skipped, error]
+
+    SyncResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        error: { type: string }
+        synced:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/SyncResult" }
+      required: [ok, synced]
+
+    SyncProgressEvent:
+      type: object
+      description: "Payload of an SSE event from /api/lark/sync (stream=1)"
+      properties:
+        type: { type: string, enum: [start, progress, error, finished] }
+        chatId: { type: string }
+        phase: { type: string }
+        count: { type: integer }
+        ok: { type: boolean }
+        synced:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/SyncResult" }
+        error: { type: string }
+      required: [type]
+
+    SyncProgressSnapshot:
+      type: object
+      description: "Best-effort representation of the sync engine status snapshot exposed by /api/sync/progress. Fields depend on the engine."
+      additionalProperties: true
+
+    Topic:
+      type: object
+      properties:
+        id: { type: integer }
+        chatroom_id: { type: string }
+        date: { type: string }
+        topic: { type: string }
+        category: { type: string }
+        confidence: { type: number }
+        message_ids: { type: string }
+        created_at: { type: string }
+      required: [id, chatroom_id, date, topic, category, confidence]
+
+    TopicCategory:
+      type: object
+      properties:
+        category: { type: string }
+        count: { type: integer }
+        topics: { type: array, items: { $ref: "#/components/schemas/Topic" } }
+      required: [category, count]
+
+    TopicsResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        chatroom_id: { type: string }
+        date: { type: string }
+        topics: { type: array, items: { $ref: "#/components/schemas/Topic" } }
+        categories: { type: array, items: { $ref: "#/components/schemas/TopicCategory" } }
+      required: [ok, topics]
+
+    TopicAnalyzeRequest:
+      type: object
+      properties:
+        chatroom_id: { type: string }
+        date: { type: string }
+      required: [chatroom_id, date]
+
+    TopicAnalyzeResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        topics: { type: array, items: { $ref: "#/components/schemas/Topic" } }
+      required: [ok, topics]
+
+    TopicDetailResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        topic: { $ref: "#/components/schemas/Topic" }
+      required: [ok, topic]
+
+    TopicLinksResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        date: { type: string }
+        links: { type: array, items: { $ref: "#/components/schemas/Link" } }
+        count: { type: integer }
+      required: [ok, links, count]
+
+    Mention:
+      type: object
+      properties:
+        id: { type: integer }
+        chatroom_id: { type: string }
+        message_id: { type: string }
+        mentioned: { type: string }
+        mentioner: { type: string }
+        date: { type: string }
+        created_at: { type: string }
+      required: [id, chatroom_id, message_id, mentioned, mentioner, date]
+
+    MentionsResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        mentions: { type: array, items: { $ref: "#/components/schemas/Mention" } }
+      required: [ok, mentions]
+
+    MentionStats:
+      type: object
+      properties:
+        ok: { type: boolean }
+        mentioned:
+          type: object
+          additionalProperties: { type: integer }
+        mentioned_by:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+      required: [ok, mentioned]
+
+    Link:
+      type: object
+      properties:
+        id: { type: integer }
+        chatroom_id: { type: string }
+        message_id: { type: string }
+        url: { type: string }
+        title: { type: string }
+        date: { type: string }
+        created_at: { type: string }
+      required: [id, chatroom_id, message_id, url, date]
+
+    LinksResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        links: { type: array, items: { $ref: "#/components/schemas/Link" } }
+      required: [ok, links]
+
+    LinkAnalyzeRequest:
+      type: object
+      properties:
+        chatroom_id: { type: string }
+        date: { type: string }
+      required: [chatroom_id, date]
+
+    LinkAnalyzeResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        links: { type: array, items: { $ref: "#/components/schemas/Link" } }
+      required: [ok, links]
+
+    Favorite:
+      type: object
+      properties:
+        id: { type: integer }
+        chatroom_id: { type: string }
+        message_id: { type: string }
+        sender: { type: string }
+        content: { type: string }
+        date: { type: string }
+        created_at: { type: string }
+      required: [id, chatroom_id, message_id, sender, content, date]
+
+    FavoriteToggleRequest:
+      type: object
+      properties:
+        chatroom_id: { type: string }
+        message_id: { type: string }
+      required: [chatroom_id, message_id]
+
+    FavoriteToggleResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        favorited: { type: boolean }
+      required: [ok, favorited]
+
+    FavoritesResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        favorites: { type: array, items: { $ref: "#/components/schemas/Favorite" } }
+      required: [ok, favorites]
+
+    ReportRequest:
+      type: object
+      properties:
+        chatroom_id: { type: string }
+        date: { type: string }
+        range: { type: string }
+      required: [chatroom_id]
+
+    ReportResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        report: { type: string }
+        error: { type: string }
+      required: [ok, report]
+
+    SearchResult:
+      type: object
+      properties:
+        chatroom_id: { type: string }
+        chat_name: { type: string }
+        message_id: { type: string }
+        sender: { type: string }
+        content: { type: string }
+        date: { type: string }
+        timestamp: { type: integer, format: int64 }
+      required: [chatroom_id, message_id, sender, content, date, timestamp]
+
+    SearchResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        results: { type: array, items: { $ref: "#/components/schemas/SearchResult" } }
+        count: { type: integer }
+      required: [ok, results, count]
+
+    LarkChatItem:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        member_count: { type: integer }
+        filtered: { type: boolean }
+      required: [id, name, member_count, filtered]
+
+    LarkChatsResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        chats: { type: array, items: { $ref: "#/components/schemas/LarkChatItem" } }
+        filter: { $ref: "#/components/schemas/LarkChatFilter" }
+      required: [ok, chats, filter]
+
+    LarkSender:
+      type: object
+      properties:
+        id: { type: string }
+        id_type: { type: string }
+        name: { type: string }
+        sender_id: { type: string }
+        sender_name: { type: string }
+      required: [id]
+
+    LarkMessageBody:
+      type: object
+      properties:
+        content: { type: string }
+
+    LarkMention:
+      type: object
+      properties:
+        key: { type: string }
+        id: { type: string }
+        name: { type: string }
+        tenant_key: { type: string }
+      required: [key, id, name]
+
+    LarkMessage:
+      type: object
+      properties:
+        message_id: { type: string }
+        chat_id: { type: string }
+        sender: { $ref: "#/components/schemas/LarkSender" }
+        create_time: { type: string }
+        update_time: { type: string }
+        msg_type: { type: string }
+        content: { type: string }
+        body: { $ref: "#/components/schemas/LarkMessageBody" }
+        mentions: { type: array, items: { $ref: "#/components/schemas/LarkMention" } }
+        parent_id: { type: string }
+        thread_id: { type: string }
+        messageId: { type: string }
+        msgType: { type: string }
+        createTime: { type: string }
+      required: [message_id]
+
+    LarkError:
+      type: object
+      properties:
+        type: { type: string }
+        message: { type: string }
+      required: [type, message]
+
+    LarkMessagesData:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/LarkMessage" } }
+        messages: { type: array, items: { $ref: "#/components/schemas/LarkMessage" } }
+        has_more: { type: boolean }
+        page_token: { type: string }
+
+    LarkMessagesResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        data: { $ref: "#/components/schemas/LarkMessagesData" }
+        messages: { type: array, items: { $ref: "#/components/schemas/LarkMessage" } }
+        error: { $ref: "#/components/schemas/LarkError" }
+      required: [ok]
+
+    AIClassifyRequest:
+      type: object
+      properties:
+        chatroom_ids: { type: array, items: { type: string } }
+        date: { type: string }
+      required: [chatroom_ids]
+
+    AIClassifyResult:
+      type: object
+      properties:
+        chatroom_id: { type: string }
+        name: { type: string }
+        category: { type: string }
+        confidence: { type: number }
+        reason: { type: string }
+      required: [chatroom_id, category, confidence]
+
+    AIClassifyResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        results: { type: array, items: { $ref: "#/components/schemas/AIClassifyResult" } }
+        classified: { type: integer }
+      required: [ok, results, classified]
+
+    MessageLink:
+      type: object
+      properties:
+        id: { type: integer }
+        chatroom_id: { type: string }
+        message_id: { type: string }
+        url: { type: string }
+        title: { type: string }
+        summary: { type: string }
+        date: { type: string }
+        resolved: { type: boolean }
+        created_at: { type: string }
+      required: [id, chatroom_id, message_id, url, date, resolved]
+
+    MessageLinksRawResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        links: { type: array, items: { $ref: "#/components/schemas/MessageLink" } }
+        date: { type: string }
+      required: [ok, links]
+
+    MessageLinksBackfillResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        inserted: { type: integer }
+      required: [ok, inserted]
+
+    MessageLinksResolveResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        resolved: { type: integer }
+      required: [ok, resolved]
+
+    NewMessagesResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        messages: { type: array, items: { $ref: "#/components/schemas/Message" } }
+        count: { type: integer }
+      required: [ok, messages, count]
+
+    RescanResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        message: { type: string }
+      required: [ok]
+
+    WXImageResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        url: { type: string }
+        data: { type: string }
+        message: { type: string }
+      required: [ok]

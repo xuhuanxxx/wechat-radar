@@ -1,0 +1,22 @@
+# oapi-codegen config for the Go data service.
+# https://github.com/oapi-codegen/oapi-codegen
+#
+# This generates a `types.gen.go` file inside apps/data-service/api/ that
+# both the handlers and any internal callers can import. Only types are
+# emitted — handlers, clients, and embedded specs are intentionally not
+# generated; this is a contract-first project, not a server scaffold.
+
+package: api
+output: ../../apps/data-service/api/types.gen.go
+
+generate:
+  models: true
+  embedded-spec: false
+  std-http-server: false
+  echo-server: false
+  gin-server: false
+  client: false
+
+output-options:
+  skip-prune: false
+  user-templates: {}
