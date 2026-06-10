@@ -25,147 +25,124 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     // MARK: - UI Setup
-    
+    //
+    // Native menu-bar conventions:
+    //   * Status item icon is a template SF Symbol — macOS recolors it for
+    //     light/dark menu bar and the active accent color automatically.
+    //   * Icon swaps between two symbols to reflect server state, instead
+    //     of an emoji + redundant text status line.
+    //   * One menu used by both left- AND right-click. Assigning
+    //     `statusItem.menu` is enough; macOS pops it up for both buttons.
+    //   * Menu items carry small SF Symbol icons via `image`, not emoji
+    //     prefixes — this matches what e.g. Things, Cleanshot, Linear do.
+
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = "📡"
-        
-        // Enable right-click by adding a target/action to the button
         if let button = statusItem.button {
-            button.target = self
-            button.action = #selector(statusItemClicked(_:))
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            button.image = statusBarImage(running: false)
+            button.imagePosition = .imageOnly
+            button.toolTip = "Lark Radar"
         }
-        
         buildMenu()
     }
-    
+
+    /// Returns the menu-bar icon for the given state, as a template image
+    /// so macOS handles light/dark/accent recoloring.
+    private func statusBarImage(running: Bool) -> NSImage? {
+        let name = running
+            ? "antenna.radiowaves.left.and.right"
+            : "antenna.radiowaves.left.and.right.slash"
+        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: "Lark Radar") else {
+            return nil
+        }
+        image.isTemplate = true
+        return image
+    }
+
+    /// Returns a small SF Symbol scaled for menu-item leading icons.
+    private func menuIcon(_ name: String) -> NSImage? {
+        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil) else {
+            return nil
+        }
+        image.isTemplate = true
+        return image
+    }
+
     private func buildMenu() {
         let menu = NSMenu()
-        
-        let titleItem = NSMenuItem(title: "Lark Radar", action: nil, keyEquivalent: "")
+        menu.autoenablesItems = false
+
+        // Disabled title row — Apple's pattern for menu-bar apps. The text
+        // also acts as the "About this app" affordance via .action below.
+        let titleItem = NSMenuItem(title: "Lark Radar \(versionString())", action: nil, keyEquivalent: "")
         titleItem.isEnabled = false
         menu.addItem(titleItem)
-        
-        let statusMenuItem = NSMenuItem(title: "Status: Stopped", action: nil, keyEquivalent: "")
-        statusMenuItem.tag = 1
-        statusMenuItem.isEnabled = false
-        menu.addItem(statusMenuItem)
-        
+
         menu.addItem(NSMenuItem.separator())
-        
-        let syncItem = NSMenuItem(title: "🔄  Sync Now", action: #selector(triggerSync), keyEquivalent: "s")
+
+        let syncItem = NSMenuItem(title: "Sync Now", action: #selector(triggerSync), keyEquivalent: "s")
+        syncItem.image = menuIcon("arrow.triangle.2.circlepath")
         syncItem.tag = 2
         menu.addItem(syncItem)
-        
-        let toggleItem = NSMenuItem(title: "▶️  Start Server", action: #selector(toggleServer), keyEquivalent: "t")
+
+        let toggleItem = NSMenuItem(title: "Start Server", action: #selector(toggleServer), keyEquivalent: "t")
+        toggleItem.image = menuIcon("play.fill")
         toggleItem.tag = 100
         menu.addItem(toggleItem)
-        
+
         menu.addItem(NSMenuItem.separator())
-        
-        // Quick links section
-        let linksItem = NSMenuItem(title: "Quick Links", action: nil, keyEquivalent: "")
-        linksItem.isEnabled = false
-        menu.addItem(linksItem)
-        
-        let dashboardItem = NSMenuItem(title: "📊  Open Dashboard...", action: #selector(openDashboard), keyEquivalent: "o")
+
+        let dashboardItem = NSMenuItem(title: "Open Dashboard", action: #selector(openDashboard), keyEquivalent: "o")
+        dashboardItem.image = menuIcon("safari")
         dashboardItem.tag = 3
         menu.addItem(dashboardItem)
-        
-        let dataDirItem = NSMenuItem(title: "📁  Open Data Directory", action: #selector(openDataDirectory), keyEquivalent: "d")
+
+        let dataDirItem = NSMenuItem(title: "Open Data Folder", action: #selector(openDataDirectory), keyEquivalent: "d")
+        dataDirItem.image = menuIcon("folder")
         menu.addItem(dataDirItem)
-        
-        let logsItem = NSMenuItem(title: "📋  Open Logs", action: #selector(openLogs), keyEquivalent: "l")
+
+        let logsItem = NSMenuItem(title: "Open Logs", action: #selector(openLogs), keyEquivalent: "l")
+        logsItem.image = menuIcon("doc.text")
         menu.addItem(logsItem)
-        
+
         menu.addItem(NSMenuItem.separator())
-        
-        let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q")
+
+        let aboutItem = NSMenuItem(title: "About Lark Radar", action: #selector(showAbout), keyEquivalent: "")
+        menu.addItem(aboutItem)
+
+        let quitItem = NSMenuItem(title: "Quit Lark Radar", action: #selector(quitApp), keyEquivalent: "q")
         menu.addItem(quitItem)
-        
+
         statusItem.menu = menu
     }
-    
-    @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
-        guard let event = NSApp.currentEvent else { return }
-        
-        if event.type == .rightMouseUp {
-            // Right-click: show context menu without left-click menu
-            showContextMenu()
-        } else {
-            // Left-click: show normal menu
-            statusItem.button?.performClick(nil)
-        }
-    }
-    
-    private func showContextMenu() {
-        let menu = NSMenu()
-        
-        // Status header
-        let statusHeader = NSMenuItem(title: isRunning ? "🟢 Running on :\(serverPort)" : "⚫ Stopped", action: nil, keyEquivalent: "")
-        statusHeader.isEnabled = false
-        menu.addItem(statusHeader)
-        
-        menu.addItem(NSMenuItem.separator())
-        
-        // Quick actions
-        if isRunning {
-            let syncItem = NSMenuItem(title: "🔄 Sync Now", action: #selector(triggerSync), keyEquivalent: "")
-            menu.addItem(syncItem)
-            
-            let dashboardItem = NSMenuItem(title: "📊 Dashboard", action: #selector(openDashboard), keyEquivalent: "")
-            menu.addItem(dashboardItem)
-            
-            let stopItem = NSMenuItem(title: "⏹  Stop Server", action: #selector(toggleServer), keyEquivalent: "")
-            menu.addItem(stopItem)
-        } else {
-            let startItem = NSMenuItem(title: "▶️  Start Server", action: #selector(toggleServer), keyEquivalent: "")
-            menu.addItem(startItem)
-        }
-        
-        menu.addItem(NSMenuItem.separator())
-        
-        // Utility actions
-        let dataDirItem = NSMenuItem(title: "📁 Data Directory", action: #selector(openDataDirectory), keyEquivalent: "")
-        menu.addItem(dataDirItem)
-        
-        let logsItem = NSMenuItem(title: "📋 Logs", action: #selector(openLogs), keyEquivalent: "")
-        menu.addItem(logsItem)
-        
-        menu.addItem(NSMenuItem.separator())
-        
-        let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "")
-        menu.addItem(quitItem)
-        
-        // Show menu at status item location
-        if let button = statusItem.button {
-            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
-        }
-    }
-    
+
     private func updateMenu() {
         guard let menu = statusItem.menu else { return }
-        
-        if let statusMenuItem = menu.item(withTag: 1) {
-            statusMenuItem.title = isRunning
-                ? "Status: Running on :\(serverPort)"
-                : "Status: Stopped"
-        }
-        
+
         if let toggleItem = menu.item(withTag: 100) {
-            toggleItem.title = isRunning ? "⏹  Stop Server" : "▶️  Start Server"
+            toggleItem.title = isRunning ? "Stop Server" : "Start Server"
+            toggleItem.image = menuIcon(isRunning ? "stop.fill" : "play.fill")
         }
-        
+
         if let syncItem = menu.item(withTag: 2) {
             syncItem.isEnabled = isRunning
         }
-        
+
         if let dashboardItem = menu.item(withTag: 3) {
             dashboardItem.isEnabled = isRunning
         }
-        
-        statusItem.button?.title = isRunning ? "🟢" : "📡"
+
+        // Reflect state in the menu-bar icon itself; the text status line
+        // that used to live inside the menu is no longer needed.
+        statusItem.button?.image = statusBarImage(running: isRunning)
+        statusItem.button?.toolTip = isRunning
+            ? "Lark Radar — running on :\(serverPort)"
+            : "Lark Radar — stopped"
+    }
+
+    private func versionString() -> String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        return v.map { "(\($0))" } ?? ""
     }
     
     // MARK: - Server Management
@@ -407,6 +384,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.open(url)
     }
     
+    @objc func showAbout() {
+        // Use AppKit's standard About panel — it picks up CFBundleName,
+        // CFBundleShortVersionString and CFBundleIdentifier from Info.plist.
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(nil)
+    }
+
     @objc func quitApp() {
         stopAutoSync()
         stopServer()

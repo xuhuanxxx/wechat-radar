@@ -90,24 +90,33 @@ cat > "$CONTENTS_DIR/Info.plist" << PLIST
   <string>6.0</string>
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
+  <key>CFBundleDisplayName</key>
+  <string>$APP_NAME</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
   <string>$VERSION</string>
   <key>CFBundleVersion</key>
   <string>1</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.productivity</string>
   <key>LSMinimumSystemVersion</key>
   <string>12.0</string>
   <key>LSUIElement</key>
   <true/>
   <key>NSHighResolutionCapable</key>
   <true/>
+  <key>NSHumanReadableCopyright</key>
+  <string>Non-commercial research use only. See LICENSE.</string>
 </dict>
 </plist>
 PLIST
 
-# Create empty icon file (user can replace with real icon)
-touch "$RESOURCES_DIR/icon.icns"
+# No icon shipped — placing an empty icon.icns here would register a broken
+# resource. Since this is a menu-bar-only app (LSUIElement: true), Finder
+# falls back to the default generic app icon when there's no .icns, which
+# is preferable to a corrupt one. Drop a real icon.icns into Resources/
+# alongside the binary to override.
 
 echo ""
 echo "=== Build complete ==="
