@@ -36,7 +36,7 @@ project-root/
 ├── components/                # React 组件
 ├── lib/                       # Web 层纯工具
 │   └── range.ts               # 日期工具
-├── go-server/                 # Go 数据层
+├── apps/data-service/                 # Go 数据层
 │   ├── main.go                # HTTP server
 │   ├── api/                   # API handlers
 │   ├── db/                    # SQLite 连接
@@ -73,7 +73,7 @@ pnpm install
 ### 3. 安装 Go 依赖
 
 ```bash
-cd go-server
+cd apps/data-service
 go mod init lark-radar-server  # 首次
 go mod tidy
 ```
@@ -98,7 +98,7 @@ lark-cli doctor
 **终端 1 - 启动 Go 数据服务:**
 
 ```bash
-cd go-server
+cd apps/data-service
 go run main.go
 
 # 输出: [LarkRadar] listening on :3456
@@ -136,7 +136,7 @@ docker run -p 3000:3000 \
 
 ```bash
 # 构建 Go 二进制
-cd go-server
+cd apps/data-service
 go build -o ../dist/lark-radar-server main.go
 
 # 构建 Swift 菜单栏
@@ -168,11 +168,11 @@ curl http://localhost:3000/api/health
 ### 修改数据层
 
 ```bash
-# 文件: go-server/
+# 文件: apps/data-service/
 # 修改后需重启 Go 服务
 
 # 热重载（使用 air）
-cd go-server
+cd apps/data-service
 air
 
 # 或手动重启
@@ -208,7 +208,7 @@ pnpm tsc --noEmit
 ### Go
 
 ```bash
-cd go-server
+cd apps/data-service
 
 # 格式化
 go fmt ./...
@@ -245,7 +245,7 @@ DATA_API_URL=http://localhost:3456 DEBUG_PROXY=1 pnpm dev
 
 ```bash
 # 详细日志
-cd go-server
+cd apps/data-service
 LOG_LEVEL=debug go run main.go
 
 # 使用 delve 调试
@@ -285,7 +285,7 @@ pnpm test:e2e
 ### 数据层测试
 
 ```bash
-cd go-server
+cd apps/data-service
 
 # 单元测试
 go test ./...
@@ -311,7 +311,7 @@ go test -bench=. ./...
 ### 添加新表
 
 ```go
-// go-server/db/migrate.go
+// apps/data-service/db/migrate.go
 func migrate(d *sql.DB) {
     d.Exec(`
         CREATE TABLE IF NOT EXISTS new_table (
@@ -361,7 +361,7 @@ INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', '2');
 
 **示例:**
 ```
-feat(go-server): add link intelligence API
+feat(data-service): add link intelligence API
 
 - Implement GET /api/topics/links
 - Add article/tool classification
@@ -380,8 +380,8 @@ Closes #123
 # package.json
 npm version 1.1.0
 
-# go-server
-echo "1.1.0" > go-server/VERSION
+# data-service
+echo "1.1.0" > apps/data-service/VERSION
 ```
 
 ### 2. 构建
@@ -391,7 +391,7 @@ echo "1.1.0" > go-server/VERSION
 pnpm build
 
 # Go
-cd go-server
+cd apps/data-service
 go build -ldflags="-s -w -X main.version=1.1.0" -o lark-radar-server main.go
 
 # macOS app
@@ -403,7 +403,7 @@ go build -ldflags="-s -w -X main.version=1.1.0" -o lark-radar-server main.go
 ```bash
 # 完整测试套件
 pnpm test
-cd go-server && go test ./...
+cd apps/data-service && go test ./...
 ```
 
 ### 4. 打包

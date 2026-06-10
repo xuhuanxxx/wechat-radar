@@ -23,7 +23,7 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 
 # Go binary name
 GO_BINARY="lark-radar-server"
-GO_BINARY_PATH="$PROJECT_ROOT/go-server/$GO_BINARY"
+GO_BINARY_PATH="$PROJECT_ROOT/apps/data-service/$GO_BINARY"
 
 echo "=== Building $APP_NAME for $ARCH ==="
 
@@ -33,7 +33,7 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
 # 1. Build Go data service
 echo "[1/4] Building Go data service..."
-cd "$PROJECT_ROOT/go-server"
+cd "$PROJECT_ROOT/apps/data-service"
 
 # Clean previous build
 rm -f "$GO_BINARY"
@@ -55,19 +55,20 @@ chmod +x "$RESOURCES_DIR/$GO_BINARY"
 
 # 3. Compile Swift menu bar app
 echo "[3/4] Compiling Swift menu bar app..."
-if [ -f "$PROJECT_ROOT/scripts/macos-menu/main.swift" ]; then
+SWIFT_SRC="$PROJECT_ROOT/apps/macos-menu/main.swift"
+if [ -f "$SWIFT_SRC" ]; then
   swiftc -o "$MACOS_DIR/LarkRadarMenu" \
-    "$PROJECT_ROOT/scripts/macos-menu/main.swift" \
+    "$SWIFT_SRC" \
     -framework Cocoa \
     -framework Foundation
-  
+
   if [ ! -f "$MACOS_DIR/LarkRadarMenu" ]; then
     echo "ERROR: Swift menu bar app compilation failed"
     exit 1
   fi
   echo "    Menu bar app compiled successfully"
 else
-  echo "ERROR: Swift menu source not found at scripts/macos-menu/main.swift"
+  echo "ERROR: Swift menu source not found at apps/macos-menu/main.swift"
   exit 1
 fi
 
