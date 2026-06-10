@@ -111,6 +111,11 @@ async function proxyRequest(req: NextRequest, method: string) {
     responseHeaders.set('Access-Control-Allow-Origin', '*');
     responseHeaders.set('Access-Control-Allow-Methods', ALLOWED_METHODS.join(', '));
     responseHeaders.set('Access-Control-Allow-Headers', '*');
+    
+    // Prevent browser from caching error responses
+    responseHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    responseHeaders.set('Pragma', 'no-cache');
+    responseHeaders.set('Expires', '0');
 
     return new NextResponse(upstream.body, {
       status: upstream.status,
