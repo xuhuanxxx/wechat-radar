@@ -345,13 +345,16 @@ export default function SetupPage() {
           <section className="card p-5 lg:col-span-2">
             <SectionTitle icon={<Server size={15} />} title="数据服务地址" />
             <p className="mt-2 text-[12px] text-[var(--text-3)]">
-              如果 Web 前端和数据服务不在同一域名，请填写数据服务地址（如 http://localhost:8787）。留空则使用当前域名。
+              数据服务（Go binary）默认监听 :3456。本地直接运行时通常留空即可，
+              Next.js 容器化部署时会自动使用 <code>DATA_API_URL</code> 环境变量。
+              只有从不同机器访问数据服务时才需要在这里填它的地址，例如
+              <code>http://192.168.x.x:3456</code>。
             </p>
             <div className="mt-3 flex items-center gap-2">
               <input
                 value={dataApiUrl}
                 onChange={(e) => setDataApiUrlState(e.target.value)}
-                placeholder="http://localhost:8787"
+                placeholder="http://localhost:3456"
                 className="control-surface flex-1 rounded-md px-3 py-2 text-[13px] outline-none"
               />
               <button className="btn text-[12px]" onClick={testDataUrl}>
