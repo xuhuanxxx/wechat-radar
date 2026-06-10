@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"github.com/xuhuanxxx/wechat-radar/apps/data-service/db"
 	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
@@ -26,7 +27,7 @@ type SyncStatus struct {
 	StartedAt   time.Time                 `json:"started_at,omitempty"`
 	CompletedAt time.Time                 `json:"completed_at,omitempty"`
 	Progress    map[string]int            `json:"progress"`
-	Results     map[string]models.SyncResult `json:"results,omitempty"`
+	Results     map[string]api.SyncResult `json:"results,omitempty"`
 	Error       string                    `json:"error,omitempty"`
 }
 
@@ -37,7 +38,7 @@ func NewEngine(database *db.DB, config *db.ConfigManager) *Engine {
 		config: config,
 		status: &SyncStatus{
 			Progress: make(map[string]int),
-			Results:  make(map[string]models.SyncResult),
+			Results:  make(map[string]api.SyncResult),
 		},
 	}
 }
@@ -92,17 +93,17 @@ func (e *Engine) GetStatus() *SyncStatus {
 }
 
 // SyncChat syncs a single chat by ID
-func (e *Engine) SyncChat(chatID string, daysBack int) (models.SyncResult, error) {
+func (e *Engine) SyncChat(chatID string, daysBack int) (api.SyncResult, error) {
 	e.mu.Lock()
 	if e.status.Running {
 		e.mu.Unlock()
-		return models.SyncResult{}, fmt.Errorf("sync already in progress")
+		return api.SyncResult{}, fmt.Errorf("sync already in progress")
 	}
 	e.status.Running = true
 	e.status.StartedAt = time.Now()
 	e.status.CompletedAt = time.Time{}
 	e.status.Progress = make(map[string]int)
-	e.status.Results = make(map[string]models.SyncResult)
+	e.status.Results = make(map[string]api.SyncResult)
 	e.status.Error = ""
 	e.mu.Unlock()
 
@@ -129,7 +130,7 @@ func (e *Engine) SyncChat(chatID string, daysBack int) (models.SyncResult, error
 }
 
 // SyncAll syncs all chats for the given days back
-func (e *Engine) SyncAll(daysBack int) (map[string]models.SyncResult, error) {
+func (e *Engine) SyncAll(daysBack int) (map[string]api.SyncResult, error) {
 	e.mu.Lock()
 	if e.status.Running {
 		e.mu.Unlock()
@@ -139,7 +140,7 @@ func (e *Engine) SyncAll(daysBack int) (map[string]models.SyncResult, error) {
 	e.status.StartedAt = time.Now()
 	e.status.CompletedAt = time.Time{}
 	e.status.Progress = make(map[string]int)
-	e.status.Results = make(map[string]models.SyncResult)
+	e.status.Results = make(map[string]api.SyncResult)
 	e.status.Error = ""
 	e.mu.Unlock()
 
@@ -159,7 +160,7 @@ func (e *Engine) SyncAll(daysBack int) (map[string]models.SyncResult, error) {
 		return nil, err
 	}
 
-	results := make(map[string]models.SyncResult)
+	results := make(map[string]api.SyncResult)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	semaphore := make(chan struct{}, 3) // Max 3 concurrent
@@ -197,10 +198,10 @@ func (e *Engine) SyncAll(daysBack int) (map[string]models.SyncResult, error) {
 
 // NewChatListResponse represents the new lark-cli +chat-list output
 type NewChatListResponse struct {
-	OK       bool                `json:"ok"`
-	Identity string              `json:"identity,omitempty"`
-	Data     *NewChatListData    `json:"data,omitempty"`
-	Error    *models.LarkError   `json:"error,omitempty"`
+	OK       bool              `json:"ok"`
+	Identity string            `json:"identity,omitempty"`
+	Data     *NewChatListData  `json:"data,omitempty"`
+	Error    *models.LarkError `json:"error,omitempty"`
 }
 
 type NewChatListData struct {
@@ -241,7 +242,7 @@ func (e *Engine) fetchChats() ([]models.LarkChat, error) {
 	return filtered, nil
 }
 
-func (e *Engine) shouldSyncChat(chat models.LarkChat, cfg *models.Config) bool {
+func (e *Engine) shouldSyncChat(chat models.LarkChat, cfg *api.Config) bool {
 	if cfg == nil {
 		return true
 	}
@@ -272,10 +273,10 @@ func (e *Engine) FetchChats() ([]models.LarkChat, error) {
 
 // NewMessagesResponse represents the new lark-cli +chat-messages-list output
 type NewMessagesResponse struct {
-	OK       bool                 `json:"ok"`
-	Identity string               `json:"identity,omitempty"`
-	Data     *NewMessagesData     `json:"data,omitempty"`
-	Error    *models.LarkError    `json:"error,omitempty"`
+	OK       bool              `json:"ok"`
+	Identity string            `json:"identity,omitempty"`
+	Data     *NewMessagesData  `json:"data,omitempty"`
+	Error    *models.LarkError `json:"error,omitempty"`
 }
 
 type NewMessagesData struct {
@@ -284,8 +285,8 @@ type NewMessagesData struct {
 	PageToken string               `json:"page_token,omitempty"`
 }
 
-func (e *Engine) doSyncChat(chatID string, daysBack int) (models.SyncResult, error) {
-	result := models.SyncResult{}
+func (e *Engine) doSyncChat(chatID string, daysBack int) (api.SyncResult, error) {
+	result := api.SyncResult{}
 
 	// Calculate start time
 	startTime := time.Now().AddDate(0, 0, -daysBack).Unix()

@@ -4,17 +4,11 @@ import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { PieChart } from 'lucide-react';
 import type { EChartsOption } from 'echarts';
+import type { Schemas } from '@/lib/api-client';
 
 const ReactECharts = dynamic(() => import('echarts-for-react'), { ssr: false });
 
-export interface CategoryStat {
-  id: number;
-  name: string;
-  color: string;
-  emoji: string | null;
-  group_count: number;
-  message_count: number;
-}
+export type CategoryStat = Schemas['CategoryStat'];
 
 type Mode = 'donut' | 'ring' | 'bar' | 'radar';
 const MODES: { key: Mode; label: string }[] = [

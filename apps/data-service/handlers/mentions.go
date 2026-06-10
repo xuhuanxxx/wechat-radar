@@ -1,9 +1,8 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"net/http"
-
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
 // Mentions returns mentions
@@ -36,16 +35,16 @@ func (h *Handlers) Mentions(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	mentions := []models.Mention{}
+	mentions := []api.Mention{}
 	for rows.Next() {
-		var m models.Mention
+		var m api.Mention
 		if err := rows.Scan(&m.ID, &m.ChatroomID, &m.MessageID, &m.Mentioned, &m.Mentioner, &m.Date); err != nil {
 			continue
 		}
 		mentions = append(mentions, m)
 	}
 
-	writeJSON(w, http.StatusOK, models.MentionsResponse{
+	writeJSON(w, http.StatusOK, api.MentionsResponse{
 		OK:       true,
 		Mentions: mentions,
 	})
@@ -89,7 +88,7 @@ func (h *Handlers) MentionStats(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, models.MentionStats{
+	writeJSON(w, http.StatusOK, api.MentionStats{
 		OK:          true,
 		Mentioned:   mentioned,
 		MentionedBy: mentionedBy,

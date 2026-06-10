@@ -1,11 +1,10 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"net/http"
 	"regexp"
 	"strings"
-
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
 var urlRegexMessageLinks = regexp.MustCompile(`https?://[^\s<>"{}|\\^\[\]]+`)
@@ -30,25 +29,25 @@ func (h *Handlers) MessageLinksRaw(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		// Table may not exist yet; return empty mock data
-		writeJSON(w, http.StatusOK, models.MessageLinksRawResponse{
+		writeJSON(w, http.StatusOK, api.MessageLinksRawResponse{
 			OK:    true,
-			Links: []models.MessageLink{},
+			Links: []api.MessageLink{},
 			Date:  date,
 		})
 		return
 	}
 	defer rows.Close()
 
-	links := []models.MessageLink{}
+	links := []api.MessageLink{}
 	for rows.Next() {
-		var l models.MessageLink
+		var l api.MessageLink
 		if err := rows.Scan(&l.ID, &l.ChatroomID, &l.MessageID, &l.URL, &l.Title, &l.Date); err != nil {
 			continue
 		}
 		links = append(links, l)
 	}
 
-	writeJSON(w, http.StatusOK, models.MessageLinksRawResponse{
+	writeJSON(w, http.StatusOK, api.MessageLinksRawResponse{
 		OK:    true,
 		Links: links,
 		Date:  date,
@@ -71,7 +70,7 @@ func (h *Handlers) MessageLinksBackfill(w http.ResponseWriter, r *http.Request) 
 		LIMIT 1000
 	`)
 	if err != nil {
-		writeJSON(w, http.StatusOK, models.MessageLinksBackfillResponse{
+		writeJSON(w, http.StatusOK, api.MessageLinksBackfillResponse{
 			OK:       true,
 			Inserted: 0,
 		})
@@ -95,7 +94,7 @@ func (h *Handlers) MessageLinksBackfill(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	writeJSON(w, http.StatusOK, models.MessageLinksBackfillResponse{
+	writeJSON(w, http.StatusOK, api.MessageLinksBackfillResponse{
 		OK:       true,
 		Inserted: backfilled,
 	})
@@ -113,7 +112,7 @@ func (h *Handlers) MessageLinksResolve(w http.ResponseWriter, r *http.Request) {
 		"SELECT id, url FROM message_links WHERE title IS NULL OR title = '' LIMIT 100",
 	)
 	if err != nil {
-		writeJSON(w, http.StatusOK, models.MessageLinksResolveResponse{
+		writeJSON(w, http.StatusOK, api.MessageLinksResolveResponse{
 			OK:       true,
 			Resolved: 0,
 		})
@@ -136,7 +135,7 @@ func (h *Handlers) MessageLinksResolve(w http.ResponseWriter, r *http.Request) {
 		resolved++
 	}
 
-	writeJSON(w, http.StatusOK, models.MessageLinksResolveResponse{
+	writeJSON(w, http.StatusOK, api.MessageLinksResolveResponse{
 		OK:       true,
 		Resolved: resolved,
 	})

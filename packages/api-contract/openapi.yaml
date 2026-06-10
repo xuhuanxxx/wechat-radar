@@ -449,15 +449,18 @@ paths:
   /api/lark/messages:
     get:
       summary: Raw passthrough of `lark-cli im +chat-messages-list`
+      description: |
+        Whatever shape lark-cli emits for the given chat — the data service does
+        not normalize or wrap it. Callers should treat the body as opaque JSON.
       operationId: getLarkMessages
       parameters:
         - { in: query, name: chat_id, required: true, schema: { type: string } }
       responses:
         "200":
-          description: Raw lark-cli JSON (shape varies; LarkMessagesResponse is the typical envelope)
+          description: Raw lark-cli JSON (shape varies)
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LarkMessagesResponse" }
+              schema: { type: object, additionalProperties: true }
         "400":
           description: Missing chat_id
           content:
@@ -579,31 +582,36 @@ components:
       type: object
       properties:
         ok: { type: boolean }
-      required: [ok]
-
+      required:
+        - ok
     ErrorResponse:
       type: object
       properties:
-        ok: { type: boolean, enum: [false] }
+        ok: { type: boolean }
         error: { type: string }
-      required: [ok, error]
-
+      required:
+        - ok
+        - error
     HealthResponse:
       type: object
       properties:
         ok: { type: boolean }
         version: { type: string }
         service: { type: string }
-      required: [ok, version, service]
-
+      required:
+        - ok
+        - version
+        - service
     DoctorCheck:
       type: object
       properties:
         name: { type: string }
         status: { type: string }
         message: { type: string }
-      required: [name, status]
-
+      required:
+        - name
+        - status
+        - message
     DoctorResponse:
       type: object
       properties:
@@ -611,8 +619,9 @@ components:
         checks:
           type: array
           items: { $ref: "#/components/schemas/DoctorCheck" }
-      required: [ok, checks]
-
+      required:
+        - ok
+        - checks
     LarkChatFilter:
       type: object
       properties:
@@ -623,8 +632,10 @@ components:
         blocklist:
           type: array
           items: { type: string }
-      required: [mode]
-
+      required:
+        - mode
+        - allowlist
+        - blocklist
     Config:
       type: object
       properties:
@@ -645,6 +656,7 @@ components:
         - defaultRange
         - port
         - autoSyncInterval
+        - larkChatFilter
         - demoMode
         - privacyConfirmed
         - defaultSyncDays
@@ -652,15 +664,16 @@ components:
         - larkCliPath
         - openApiKey
         - setupCompleted
-
     SetupChecks:
       type: object
       properties:
         larkInstalled: { type: boolean }
         larkAuthenticated: { type: boolean }
         larkError: { type: string }
-      required: [larkInstalled, larkAuthenticated]
-
+      required:
+        - larkInstalled
+        - larkAuthenticated
+        - larkError
     SetupStatus:
       type: object
       properties:
@@ -670,8 +683,13 @@ components:
         config: { $ref: "#/components/schemas/Config" }
         checks: { $ref: "#/components/schemas/SetupChecks" }
         error: { type: string }
-      required: [ok, dataDir, configured, config, checks]
-
+      required:
+        - ok
+        - dataDir
+        - configured
+        - config
+        - checks
+        - error
     SetupRequest:
       type: object
       properties:
@@ -686,8 +704,18 @@ components:
         source: { type: string }
         larkCliPath: { type: string }
         openApiKey: { type: string }
-      required: [myNicknames, defaultRange, demoMode, privacyConfirmed, source]
-
+      required:
+        - myNicknames
+        - defaultRange
+        - port
+        - autoSyncInterval
+        - larkChatFilter
+        - demoMode
+        - privacyConfirmed
+        - defaultSyncDays
+        - source
+        - larkCliPath
+        - openApiKey
     SetupResponse:
       type: object
       properties:
@@ -695,15 +723,19 @@ components:
         configured: { type: boolean }
         message: { type: string }
         error: { type: string }
-      required: [ok]
-
+      required:
+        - ok
+        - configured
+        - message
+        - error
     ConfigResponse:
       type: object
       properties:
         ok: { type: boolean }
         config: { $ref: "#/components/schemas/Config" }
-      required: [ok, config]
-
+      required:
+        - ok
+        - config
     TimeWindow:
       type: object
       properties:
@@ -712,29 +744,36 @@ components:
         days: { type: integer }
         start_date: { type: string }
         end_date: { type: string }
-      required: [since, until, days, start_date, end_date]
-
+      required:
+        - since
+        - until
+        - days
+        - start_date
+        - end_date
     SenderCount:
       type: object
       properties:
         sender: { type: string }
         count: { type: integer }
-      required: [sender, count]
-
+      required:
+        - sender
+        - count
     HourCount:
       type: object
       properties:
         hour: { type: integer }
         count: { type: integer }
-      required: [hour, count]
-
+      required:
+        - hour
+        - count
     TypeCount:
       type: object
       properties:
         type: { type: string }
         count: { type: integer }
-      required: [type, count]
-
+      required:
+        - type
+        - count
     CardsData:
       type: object
       properties:
@@ -753,14 +792,14 @@ components:
         - mentions
         - silent_groups
         - avg_per_group
-
     TrendPoint:
       type: object
       properties:
         date: { type: string }
         count: { type: integer }
-      required: [date, count]
-
+      required:
+        - date
+        - count
     TrendData:
       type: object
       properties:
@@ -768,10 +807,15 @@ components:
         labels: { type: array, items: { type: string } }
         values: { type: array, items: { type: integer } }
         peak: { $ref: "#/components/schemas/TrendPoint" }
-        avg: { type: number }
+        avg: { type: number, format: double }
         total: { type: integer }
-      required: [data, labels, values, peak, avg, total]
-
+      required:
+        - data
+        - labels
+        - values
+        - peak
+        - avg
+        - total
     ActiveGroup:
       type: object
       properties:
@@ -782,8 +826,14 @@ components:
         message_count: { type: integer }
         sender_count: { type: integer }
         top_senders: { type: array, items: { $ref: "#/components/schemas/SenderCount" } }
-      required: [chatroom_id, name, summary, total, message_count, sender_count, top_senders]
-
+      required:
+        - chatroom_id
+        - name
+        - summary
+        - total
+        - message_count
+        - sender_count
+        - top_senders
     CategoryStat:
       type: object
       properties:
@@ -795,16 +845,25 @@ components:
         group_count: { type: integer }
         message_count: { type: integer }
         count: { type: integer }
-      required: [id, name, category, color, emoji, group_count, message_count, count]
-
+      required:
+        - id
+        - name
+        - category
+        - color
+        - emoji
+        - group_count
+        - message_count
+        - count
     SidebarCounts:
       type: object
       properties:
         all: { type: integer }
         favorites: { type: integer }
         unsorted: { type: integer }
-      required: [all, favorites, unsorted]
-
+      required:
+        - all
+        - favorites
+        - unsorted
     StatsResponse:
       type: object
       properties:
@@ -821,8 +880,16 @@ components:
           additionalProperties: true
           nullable: true
         sidebar_counts: { $ref: "#/components/schemas/SidebarCounts" }
-      required: [ok, range, window, cards, trend, active_groups, categories, sidebar_counts]
-
+      required:
+        - ok
+        - range
+        - window
+        - cards
+        - trend
+        - active_groups
+        - categories
+        - intelligence
+        - sidebar_counts
     IntelligenceBrief:
       type: object
       properties:
@@ -831,8 +898,12 @@ components:
         highlights: { type: array, items: { type: string } }
         risks: { type: array, items: { type: string } }
         opportunities: { type: array, items: { type: string } }
-      required: [ok, summary]
-
+      required:
+        - ok
+        - summary
+        - highlights
+        - risks
+        - opportunities
     CategoryInfo:
       type: object
       properties:
@@ -840,8 +911,11 @@ components:
         name: { type: string }
         color: { type: string }
         emoji: { type: string }
-      required: [id, name, color, emoji]
-
+      required:
+        - id
+        - name
+        - color
+        - emoji
     SessionGroup:
       type: object
       properties:
@@ -853,8 +927,15 @@ components:
         unread: { type: integer }
         is_favorite: { type: boolean }
         group_ids: { type: array, items: { type: integer } }
-      required: [chatroom_id, name, summary, time, timestamp, unread, is_favorite, group_ids]
-
+      required:
+        - chatroom_id
+        - name
+        - summary
+        - time
+        - timestamp
+        - unread
+        - is_favorite
+        - group_ids
     SessionsResponse:
       type: object
       properties:
@@ -862,8 +943,11 @@ components:
         total: { type: integer }
         groups: { type: array, items: { $ref: "#/components/schemas/SessionGroup" } }
         categories: { type: array, items: { $ref: "#/components/schemas/CategoryInfo" } }
-      required: [ok, total, groups, categories]
-
+      required:
+        - ok
+        - total
+        - groups
+        - categories
     Message:
       type: object
       properties:
@@ -878,8 +962,16 @@ components:
         date: { type: string }
         source: { type: string }
         raw: { type: string }
-      required: [chatroom_id, local_id, sender, content, time, timestamp, type, date, source]
-
+      required:
+        - chatroom_id
+        - local_id
+        - sender
+        - content
+        - time
+        - timestamp
+        - type
+        - date
+        - source
     DailyEntry:
       type: object
       properties:
@@ -887,8 +979,11 @@ components:
         total: { type: integer }
         message_count: { type: integer }
         unique_senders: { type: integer }
-      required: [date, total, message_count, unique_senders]
-
+      required:
+        - date
+        - total
+        - message_count
+        - unique_senders
     GroupStats:
       type: object
       properties:
@@ -899,8 +994,14 @@ components:
         by_hour: { type: array, items: { $ref: "#/components/schemas/HourCount" } }
         by_type: { type: array, items: { $ref: "#/components/schemas/TypeCount" } }
         top_senders: { type: array, items: { $ref: "#/components/schemas/SenderCount" } }
-      required: [chat, total, message_count, unique_senders, by_hour, by_type, top_senders]
-
+      required:
+        - chat
+        - total
+        - message_count
+        - unique_senders
+        - by_hour
+        - by_type
+        - top_senders
     SyncState:
       type: object
       properties:
@@ -909,8 +1010,12 @@ components:
         last_synced_at: { type: integer, format: int64 }
         total_messages: { type: integer }
         status: { type: string }
-      required: [chatroom_id, source, last_synced_at, total_messages, status]
-
+      required:
+        - chatroom_id
+        - source
+        - last_synced_at
+        - total_messages
+        - status
     GroupDetail:
       type: object
       description: "Per-session detail used by /api/sessions/{chatroom_id}"
@@ -929,8 +1034,15 @@ components:
           allOf:
             - { $ref: "#/components/schemas/SyncState" }
         synced_dates: { type: array, items: { type: string } }
-      required: [ok, chatroom_id, date, recent, daily_history]
-
+      required:
+        - ok
+        - chatroom_id
+        - date
+        - stats
+        - recent
+        - daily_history
+        - sync_state
+        - synced_dates
     Group:
       type: object
       properties:
@@ -938,8 +1050,9 @@ components:
         name: { type: string }
         member_count: { type: integer }
         created_at: { type: string }
-      required: [chatroom_id, name]
-
+      required:
+        - chatroom_id
+        - name
     GroupWithTags:
       allOf:
         - { $ref: "#/components/schemas/Group" }
@@ -953,8 +1066,9 @@ components:
       properties:
         ok: { type: boolean }
         groups: { type: array, items: { $ref: "#/components/schemas/GroupWithTags" } }
-      required: [ok, groups]
-
+      required:
+        - ok
+        - groups
     GroupDetailResponse:
       type: object
       description: "Detail used by /api/groups/{chatroom_id} (distinct from GroupDetail)"
@@ -967,44 +1081,59 @@ components:
         stats: { $ref: "#/components/schemas/GroupStats" }
         recent: { type: array, items: { $ref: "#/components/schemas/Message" } }
         daily_history: { type: array, items: { $ref: "#/components/schemas/DailyEntry" } }
-      required: [ok, chatroom_id, name, tags]
-
+      required:
+        - ok
+        - chatroom_id
+        - name
+        - member_count
+        - tags
+        - stats
+        - recent
+        - daily_history
     GroupTagRequest:
       type: object
       properties:
         chatroom_id: { type: string }
         tag: { type: string }
-      required: [chatroom_id, tag]
-
+      required:
+        - chatroom_id
+        - tag
     GroupTagResponse:
       type: object
       properties:
         ok: { type: boolean }
         tag: { type: string }
-      required: [ok, tag]
-
+      required:
+        - ok
+        - tag
     GroupTagsResponse:
       type: object
       properties:
         ok: { type: boolean }
         tags: { type: array, items: { type: string } }
-      required: [ok, tags]
-
+      required:
+        - ok
+        - tags
     SyncRequest:
       type: object
       properties:
         chat_id: { type: string, description: "Sync a single chat. Omit to sync all." }
         days_back: { type: integer, default: 7 }
         stream: { type: boolean }
-
+      required:
+        - chat_id
+        - days_back
+        - stream
     SyncResult:
       type: object
       properties:
         inserted: { type: integer }
         skipped: { type: integer }
         error: { type: string }
-      required: [inserted, skipped, error]
-
+      required:
+        - inserted
+        - skipped
+        - error
     SyncResponse:
       type: object
       properties:
@@ -1013,13 +1142,17 @@ components:
         synced:
           type: object
           additionalProperties: { $ref: "#/components/schemas/SyncResult" }
-      required: [ok, synced]
-
+      required:
+        - ok
+        - error
+        - synced
     SyncProgressEvent:
       type: object
-      description: "Payload of an SSE event from /api/lark/sync (stream=1)"
+      description: "Payload of an SSE event from /api/lark/sync (stream=1)."
       properties:
-        type: { type: string, enum: [start, progress, error, finished] }
+        type:
+          type: string
+          description: "One of: start, progress, error, finished"
         chatId: { type: string }
         phase: { type: string }
         count: { type: integer }
@@ -1028,8 +1161,14 @@ components:
           type: object
           additionalProperties: { $ref: "#/components/schemas/SyncResult" }
         error: { type: string }
-      required: [type]
-
+      required:
+        - type
+        - chatId
+        - phase
+        - count
+        - ok
+        - synced
+        - error
     SyncProgressSnapshot:
       type: object
       description: "Best-effort representation of the sync engine status snapshot exposed by /api/sync/progress. Fields depend on the engine."
@@ -1043,19 +1182,25 @@ components:
         date: { type: string }
         topic: { type: string }
         category: { type: string }
-        confidence: { type: number }
+        confidence: { type: number, format: double }
         message_ids: { type: string }
         created_at: { type: string }
-      required: [id, chatroom_id, date, topic, category, confidence]
-
+      required:
+        - id
+        - chatroom_id
+        - date
+        - topic
+        - category
+        - confidence
     TopicCategory:
       type: object
       properties:
         category: { type: string }
         count: { type: integer }
         topics: { type: array, items: { $ref: "#/components/schemas/Topic" } }
-      required: [category, count]
-
+      required:
+        - category
+        - count
     TopicsResponse:
       type: object
       properties:
@@ -1064,29 +1209,33 @@ components:
         date: { type: string }
         topics: { type: array, items: { $ref: "#/components/schemas/Topic" } }
         categories: { type: array, items: { $ref: "#/components/schemas/TopicCategory" } }
-      required: [ok, topics]
-
+      required:
+        - ok
+        - topics
     TopicAnalyzeRequest:
       type: object
       properties:
         chatroom_id: { type: string }
         date: { type: string }
-      required: [chatroom_id, date]
-
+      required:
+        - chatroom_id
+        - date
     TopicAnalyzeResponse:
       type: object
       properties:
         ok: { type: boolean }
         topics: { type: array, items: { $ref: "#/components/schemas/Topic" } }
-      required: [ok, topics]
-
+      required:
+        - ok
+        - topics
     TopicDetailResponse:
       type: object
       properties:
         ok: { type: boolean }
         topic: { $ref: "#/components/schemas/Topic" }
-      required: [ok, topic]
-
+      required:
+        - ok
+        - topic
     TopicLinksResponse:
       type: object
       properties:
@@ -1094,8 +1243,10 @@ components:
         date: { type: string }
         links: { type: array, items: { $ref: "#/components/schemas/Link" } }
         count: { type: integer }
-      required: [ok, links, count]
-
+      required:
+        - ok
+        - links
+        - count
     Mention:
       type: object
       properties:
@@ -1106,15 +1257,21 @@ components:
         mentioner: { type: string }
         date: { type: string }
         created_at: { type: string }
-      required: [id, chatroom_id, message_id, mentioned, mentioner, date]
-
+      required:
+        - id
+        - chatroom_id
+        - message_id
+        - mentioned
+        - mentioner
+        - date
     MentionsResponse:
       type: object
       properties:
         ok: { type: boolean }
         mentions: { type: array, items: { $ref: "#/components/schemas/Mention" } }
-      required: [ok, mentions]
-
+      required:
+        - ok
+        - mentions
     MentionStats:
       type: object
       properties:
@@ -1127,8 +1284,10 @@ components:
           additionalProperties:
             type: array
             items: { type: string }
-      required: [ok, mentioned]
-
+      required:
+        - ok
+        - mentioned
+        - mentioned_by
     Link:
       type: object
       properties:
@@ -1139,29 +1298,36 @@ components:
         title: { type: string }
         date: { type: string }
         created_at: { type: string }
-      required: [id, chatroom_id, message_id, url, date]
-
+      required:
+        - id
+        - chatroom_id
+        - message_id
+        - url
+        - date
     LinksResponse:
       type: object
       properties:
         ok: { type: boolean }
         links: { type: array, items: { $ref: "#/components/schemas/Link" } }
-      required: [ok, links]
-
+      required:
+        - ok
+        - links
     LinkAnalyzeRequest:
       type: object
       properties:
         chatroom_id: { type: string }
         date: { type: string }
-      required: [chatroom_id, date]
-
+      required:
+        - chatroom_id
+        - date
     LinkAnalyzeResponse:
       type: object
       properties:
         ok: { type: boolean }
         links: { type: array, items: { $ref: "#/components/schemas/Link" } }
-      required: [ok, links]
-
+      required:
+        - ok
+        - links
     Favorite:
       type: object
       properties:
@@ -1172,45 +1338,57 @@ components:
         content: { type: string }
         date: { type: string }
         created_at: { type: string }
-      required: [id, chatroom_id, message_id, sender, content, date]
-
+      required:
+        - id
+        - chatroom_id
+        - message_id
+        - sender
+        - content
+        - date
     FavoriteToggleRequest:
       type: object
       properties:
         chatroom_id: { type: string }
         message_id: { type: string }
-      required: [chatroom_id, message_id]
-
+      required:
+        - chatroom_id
+        - message_id
     FavoriteToggleResponse:
       type: object
       properties:
         ok: { type: boolean }
         favorited: { type: boolean }
-      required: [ok, favorited]
-
+      required:
+        - ok
+        - favorited
     FavoritesResponse:
       type: object
       properties:
         ok: { type: boolean }
         favorites: { type: array, items: { $ref: "#/components/schemas/Favorite" } }
-      required: [ok, favorites]
-
+      required:
+        - ok
+        - favorites
     ReportRequest:
       type: object
       properties:
         chatroom_id: { type: string }
         date: { type: string }
         range: { type: string }
-      required: [chatroom_id]
-
+      required:
+        - chatroom_id
+        - date
+        - range
     ReportResponse:
       type: object
       properties:
         ok: { type: boolean }
         report: { type: string }
         error: { type: string }
-      required: [ok, report]
-
+      required:
+        - ok
+        - report
+        - error
     SearchResult:
       type: object
       properties:
@@ -1221,16 +1399,23 @@ components:
         content: { type: string }
         date: { type: string }
         timestamp: { type: integer, format: int64 }
-      required: [chatroom_id, message_id, sender, content, date, timestamp]
-
+      required:
+        - chatroom_id
+        - message_id
+        - sender
+        - content
+        - date
+        - timestamp
     SearchResponse:
       type: object
       properties:
         ok: { type: boolean }
         results: { type: array, items: { $ref: "#/components/schemas/SearchResult" } }
         count: { type: integer }
-      required: [ok, results, count]
-
+      required:
+        - ok
+        - results
+        - count
     LarkChatItem:
       type: object
       properties:
@@ -1238,108 +1423,53 @@ components:
         name: { type: string }
         member_count: { type: integer }
         filtered: { type: boolean }
-      required: [id, name, member_count, filtered]
-
+      required:
+        - id
+        - name
+        - member_count
+        - filtered
     LarkChatsResponse:
       type: object
       properties:
         ok: { type: boolean }
         chats: { type: array, items: { $ref: "#/components/schemas/LarkChatItem" } }
         filter: { $ref: "#/components/schemas/LarkChatFilter" }
-      required: [ok, chats, filter]
-
-    LarkSender:
-      type: object
-      properties:
-        id: { type: string }
-        id_type: { type: string }
-        name: { type: string }
-        sender_id: { type: string }
-        sender_name: { type: string }
-      required: [id]
-
-    LarkMessageBody:
-      type: object
-      properties:
-        content: { type: string }
-
-    LarkMention:
-      type: object
-      properties:
-        key: { type: string }
-        id: { type: string }
-        name: { type: string }
-        tenant_key: { type: string }
-      required: [key, id, name]
-
-    LarkMessage:
-      type: object
-      properties:
-        message_id: { type: string }
-        chat_id: { type: string }
-        sender: { $ref: "#/components/schemas/LarkSender" }
-        create_time: { type: string }
-        update_time: { type: string }
-        msg_type: { type: string }
-        content: { type: string }
-        body: { $ref: "#/components/schemas/LarkMessageBody" }
-        mentions: { type: array, items: { $ref: "#/components/schemas/LarkMention" } }
-        parent_id: { type: string }
-        thread_id: { type: string }
-        messageId: { type: string }
-        msgType: { type: string }
-        createTime: { type: string }
-      required: [message_id]
-
-    LarkError:
-      type: object
-      properties:
-        type: { type: string }
-        message: { type: string }
-      required: [type, message]
-
-    LarkMessagesData:
-      type: object
-      properties:
-        items: { type: array, items: { $ref: "#/components/schemas/LarkMessage" } }
-        messages: { type: array, items: { $ref: "#/components/schemas/LarkMessage" } }
-        has_more: { type: boolean }
-        page_token: { type: string }
-
-    LarkMessagesResponse:
-      type: object
-      properties:
-        ok: { type: boolean }
-        data: { $ref: "#/components/schemas/LarkMessagesData" }
-        messages: { type: array, items: { $ref: "#/components/schemas/LarkMessage" } }
-        error: { $ref: "#/components/schemas/LarkError" }
-      required: [ok]
-
+      required:
+        - ok
+        - chats
+        - filter
     AIClassifyRequest:
       type: object
       properties:
         chatroom_ids: { type: array, items: { type: string } }
         date: { type: string }
-      required: [chatroom_ids]
-
+      required:
+        - chatroom_ids
+        - date
     AIClassifyResult:
       type: object
       properties:
         chatroom_id: { type: string }
         name: { type: string }
         category: { type: string }
-        confidence: { type: number }
+        confidence: { type: number, format: double }
         reason: { type: string }
-      required: [chatroom_id, category, confidence]
-
+      required:
+        - chatroom_id
+        - name
+        - category
+        - confidence
+        - reason
     AIClassifyResponse:
       type: object
       properties:
         ok: { type: boolean }
         results: { type: array, items: { $ref: "#/components/schemas/AIClassifyResult" } }
         classified: { type: integer }
-      required: [ok, results, classified]
-
+      required:
+        - ok
+        - results
+        - classified
     MessageLink:
       type: object
       properties:
@@ -1352,45 +1482,57 @@ components:
         date: { type: string }
         resolved: { type: boolean }
         created_at: { type: string }
-      required: [id, chatroom_id, message_id, url, date, resolved]
-
+      required:
+        - id
+        - chatroom_id
+        - message_id
+        - url
+        - date
+        - resolved
     MessageLinksRawResponse:
       type: object
       properties:
         ok: { type: boolean }
         links: { type: array, items: { $ref: "#/components/schemas/MessageLink" } }
         date: { type: string }
-      required: [ok, links]
-
+      required:
+        - ok
+        - links
+        - date
     MessageLinksBackfillResponse:
       type: object
       properties:
         ok: { type: boolean }
         inserted: { type: integer }
-      required: [ok, inserted]
-
+      required:
+        - ok
+        - inserted
     MessageLinksResolveResponse:
       type: object
       properties:
         ok: { type: boolean }
         resolved: { type: integer }
-      required: [ok, resolved]
-
+      required:
+        - ok
+        - resolved
     NewMessagesResponse:
       type: object
       properties:
         ok: { type: boolean }
         messages: { type: array, items: { $ref: "#/components/schemas/Message" } }
         count: { type: integer }
-      required: [ok, messages, count]
-
+      required:
+        - ok
+        - messages
+        - count
     RescanResponse:
       type: object
       properties:
         ok: { type: boolean }
         message: { type: string }
-      required: [ok]
-
+      required:
+        - ok
+        - message
     WXImageResponse:
       type: object
       properties:
@@ -1398,4 +1540,8 @@ components:
         url: { type: string }
         data: { type: string }
         message: { type: string }
-      required: [ok]
+      required:
+        - ok
+        - url
+        - data
+        - message

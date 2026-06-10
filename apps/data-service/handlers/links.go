@@ -1,10 +1,9 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"net/http"
 	"regexp"
-
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
 var urlRegex = regexp.MustCompile(`https?://[^\s<>"{}|\\^\[\]]+`)
@@ -39,16 +38,16 @@ func (h *Handlers) Links(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	links := []models.Link{}
+	links := []api.Link{}
 	for rows.Next() {
-		var l models.Link
+		var l api.Link
 		if err := rows.Scan(&l.ID, &l.ChatroomID, &l.MessageID, &l.URL, &l.Title, &l.Date); err != nil {
 			continue
 		}
 		links = append(links, l)
 	}
 
-	writeJSON(w, http.StatusOK, models.LinksResponse{
+	writeJSON(w, http.StatusOK, api.LinksResponse{
 		OK:    true,
 		Links: links,
 	})
@@ -61,7 +60,7 @@ func (h *Handlers) AnalyzeLinks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req models.LinkAnalyzeRequest
+	var req api.LinkAnalyzeRequest
 	if err := parseJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid JSON")
 		return
@@ -78,13 +77,13 @@ func (h *Handlers) AnalyzeLinks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, models.LinkAnalyzeResponse{
+	writeJSON(w, http.StatusOK, api.LinkAnalyzeResponse{
 		OK:    true,
 		Links: links,
 	})
 }
 
-func (h *Handlers) extractLinks(chatroomID, date string) ([]models.Link, error) {
+func (h *Handlers) extractLinks(chatroomID, date string) ([]api.Link, error) {
 	rows, err := h.db.Query(
 		"SELECT local_id, content FROM messages WHERE chatroom_id = ? AND date = ?",
 		chatroomID, date,
@@ -94,7 +93,7 @@ func (h *Handlers) extractLinks(chatroomID, date string) ([]models.Link, error) 
 	}
 	defer rows.Close()
 
-	links := []models.Link{}
+	links := []api.Link{}
 	for rows.Next() {
 		var msgID, content string
 		if err := rows.Scan(&msgID, &content); err != nil {
@@ -102,7 +101,7 @@ func (h *Handlers) extractLinks(chatroomID, date string) ([]models.Link, error) 
 		}
 		urls := urlRegex.FindAllString(content, -1)
 		for _, url := range urls {
-			links = append(links, models.Link{
+			links = append(links, api.Link{
 				ChatroomID: chatroomID,
 				MessageID:  msgID,
 				URL:        url,

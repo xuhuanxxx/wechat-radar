@@ -1,10 +1,9 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"fmt"
 	"net/http"
-
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
 // Search searches messages
@@ -16,9 +15,9 @@ func (h *Handlers) Search(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query().Get("q")
 	if query == "" {
-		writeJSON(w, http.StatusOK, models.SearchResponse{
+		writeJSON(w, http.StatusOK, api.SearchResponse{
 			OK:      true,
-			Results: []models.SearchResult{},
+			Results: []api.SearchResult{},
 			Count:   0,
 		})
 		return
@@ -54,16 +53,16 @@ func (h *Handlers) Search(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	results := []models.SearchResult{}
+	results := []api.SearchResult{}
 	for rows.Next() {
-		var res models.SearchResult
+		var res api.SearchResult
 		if err := rows.Scan(&res.ChatroomID, &res.ChatName, &res.MessageID, &res.Sender, &res.Content, &res.Date, &res.Timestamp); err != nil {
 			continue
 		}
 		results = append(results, res)
 	}
 
-	writeJSON(w, http.StatusOK, models.SearchResponse{
+	writeJSON(w, http.StatusOK, api.SearchResponse{
 		OK:      true,
 		Results: results,
 		Count:   len(results),

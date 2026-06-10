@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os/exec"
 
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
@@ -18,16 +19,16 @@ func (h *Handlers) LarkChats(w http.ResponseWriter, r *http.Request) {
 	cmd := exec.Command("lark-cli", "im", "+chat-list", "--json")
 	output, err := cmd.Output()
 	if err != nil {
-		writeJSON(w, http.StatusOK, models.LarkChatsResponse{
+		writeJSON(w, http.StatusOK, api.LarkChatsResponse{
 			OK:     false,
-			Chats:  []models.LarkChatItem{},
-			Filter: models.LarkChatFilter{},
+			Chats:  []api.LarkChatItem{},
+			Filter: api.LarkChatFilter{},
 		})
 		return
 	}
 
 	var resp struct {
-		OK       bool `json:"ok"`
+		OK       bool   `json:"ok"`
 		Identity string `json:"identity,omitempty"`
 		Data     *struct {
 			Chats   []models.LarkChat `json:"chats,omitempty"`
@@ -41,10 +42,10 @@ func (h *Handlers) LarkChats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !resp.OK && resp.Error != nil {
-		writeJSON(w, http.StatusOK, models.LarkChatsResponse{
+		writeJSON(w, http.StatusOK, api.LarkChatsResponse{
 			OK:     false,
-			Chats:  []models.LarkChatItem{},
-			Filter: models.LarkChatFilter{},
+			Chats:  []api.LarkChatItem{},
+			Filter: api.LarkChatFilter{},
 		})
 		return
 	}
@@ -52,7 +53,7 @@ func (h *Handlers) LarkChats(w http.ResponseWriter, r *http.Request) {
 	cfg, _ := h.config.Load()
 	filter := cfg.LarkChatFilter
 
-	chats := []models.LarkChatItem{}
+	chats := []api.LarkChatItem{}
 	var allChats []models.LarkChat
 	if resp.Data != nil {
 		allChats = resp.Data.Chats
@@ -60,7 +61,7 @@ func (h *Handlers) LarkChats(w http.ResponseWriter, r *http.Request) {
 
 	for _, chat := range allChats {
 		filtered := !h.syncEngine.ShouldSyncChat(chat, cfg)
-		chats = append(chats, models.LarkChatItem{
+		chats = append(chats, api.LarkChatItem{
 			ID:          chat.ChatID,
 			Name:        chat.Name,
 			MemberCount: chat.MemberCount,
@@ -68,7 +69,7 @@ func (h *Handlers) LarkChats(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	writeJSON(w, http.StatusOK, models.LarkChatsResponse{
+	writeJSON(w, http.StatusOK, api.LarkChatsResponse{
 		OK:     true,
 		Chats:  chats,
 		Filter: filter,

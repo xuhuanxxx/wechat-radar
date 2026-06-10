@@ -1,13 +1,12 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
 // Stats returns dashboard statistics
@@ -62,11 +61,11 @@ func (h *Handlers) Intelligence(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, brief)
 }
 
-func (h *Handlers) queryStats(window models.TimeWindow) (*models.StatsResponse, error) {
-	resp := &models.StatsResponse{
+func (h *Handlers) queryStats(window api.TimeWindow) (*api.StatsResponse, error) {
+	resp := &api.StatsResponse{
 		OK:           true,
-		ActiveGroups: []models.ActiveGroup{},
-		Categories:   []models.CategoryStat{},
+		ActiveGroups: []api.ActiveGroup{},
+		Categories:   []api.CategoryStat{},
 	}
 
 	// Total messages
@@ -107,7 +106,7 @@ func (h *Handlers) queryStats(window models.TimeWindow) (*models.StatsResponse, 
 	defer rows.Close()
 
 	for rows.Next() {
-		var g models.ActiveGroup
+		var g api.ActiveGroup
 		if err := rows.Scan(&g.ChatroomID, &g.MessageCount, &g.SenderCount); err != nil {
 			continue
 		}
@@ -119,7 +118,7 @@ func (h *Handlers) queryStats(window models.TimeWindow) (*models.StatsResponse, 
 		} else {
 			g.Name = g.ChatroomID
 		}
-		g.TopSenders = []models.SenderCount{}
+		g.TopSenders = []api.SenderCount{}
 		resp.ActiveGroups = append(resp.ActiveGroups, g)
 	}
 
@@ -138,7 +137,7 @@ func (h *Handlers) queryStats(window models.TimeWindow) (*models.StatsResponse, 
 	defer trendRows.Close()
 
 	resp.Trend.Labels = []string{}
-	resp.Trend.Data = []models.TrendPoint{}
+	resp.Trend.Data = []api.TrendPoint{}
 	for trendRows.Next() {
 		var date string
 		var count int
@@ -146,7 +145,7 @@ func (h *Handlers) queryStats(window models.TimeWindow) (*models.StatsResponse, 
 			continue
 		}
 		resp.Trend.Labels = append(resp.Trend.Labels, date)
-		resp.Trend.Data = append(resp.Trend.Data, models.TrendPoint{Date: date, Count: count})
+		resp.Trend.Data = append(resp.Trend.Data, api.TrendPoint{Date: date, Count: count})
 	}
 
 	// Categories (from topics)
@@ -164,7 +163,7 @@ func (h *Handlers) queryStats(window models.TimeWindow) (*models.StatsResponse, 
 	defer catRows.Close()
 
 	for catRows.Next() {
-		var c models.CategoryStat
+		var c api.CategoryStat
 		if err := catRows.Scan(&c.Category, &c.Count); err != nil {
 			continue
 		}
@@ -174,8 +173,8 @@ func (h *Handlers) queryStats(window models.TimeWindow) (*models.StatsResponse, 
 	return resp, nil
 }
 
-func (h *Handlers) queryIntelligence(window models.TimeWindow) (*models.IntelligenceBrief, error) {
-	brief := &models.IntelligenceBrief{
+func (h *Handlers) queryIntelligence(window api.TimeWindow) (*api.IntelligenceBrief, error) {
+	brief := &api.IntelligenceBrief{
 		OK: true,
 	}
 
@@ -186,9 +185,13 @@ func (h *Handlers) queryIntelligence(window models.TimeWindow) (*models.Intellig
 		window.StartDate, window.EndDate,
 	).Scan(&totalMessages)
 
-	// Get previous period for comparison
-	days := int(window.EndDateTime.Sub(window.StartDateTime).Hours()/24) + 1
-	prevEnd := window.StartDateTime.AddDate(0, 0, -1)
+	// Get previous period for comparison. window.{Start,End}Date are
+	// always YYYY-MM-DD so parsing them is cheap and avoids carrying
+	// internal time.Time fields on the wire-facing api.TimeWindow.
+	startT, _ := time.Parse("2006-01-02", window.StartDate)
+	endT, _ := time.Parse("2006-01-02", window.EndDate)
+	days := int(endT.Sub(startT).Hours()/24) + 1
+	prevEnd := startT.AddDate(0, 0, -1)
 	prevStart := prevEnd.AddDate(0, 0, -days+1)
 	prevStartStr := prevStart.Format("2006-01-02")
 	prevEndStr := prevEnd.Format("2006-01-02")
@@ -246,13 +249,13 @@ func (h *Handlers) queryIntelligence(window models.TimeWindow) (*models.Intellig
 	return brief, nil
 }
 
-func parseRange(rangeParam, anchorDate string) (models.TimeWindow, error) {
+func parseRange(rangeParam, anchorDate string) (api.TimeWindow, error) {
 	var end time.Time
 	if anchorDate != "" {
 		var err error
 		end, err = time.Parse("2006-01-02", anchorDate)
 		if err != nil {
-			return models.TimeWindow{}, fmt.Errorf("invalid anchorDate: %s", anchorDate)
+			return api.TimeWindow{}, fmt.Errorf("invalid anchorDate: %s", anchorDate)
 		}
 	} else {
 		end = time.Now()
@@ -268,10 +271,11 @@ func parseRange(rangeParam, anchorDate string) (models.TimeWindow, error) {
 
 	start := end.AddDate(0, 0, -(days - 1))
 
-	return models.TimeWindow{
-		StartDate:      start.Format("2006-01-02"),
-		EndDate:        end.Format("2006-01-02"),
-		StartDateTime:  start,
-		EndDateTime:    end,
+	return api.TimeWindow{
+		Since:     start.Format("2006-01-02"),
+		Until:     end.Format("2006-01-02"),
+		Days:      days,
+		StartDate: start.Format("2006-01-02"),
+		EndDate:   end.Format("2006-01-02"),
 	}, nil
 }

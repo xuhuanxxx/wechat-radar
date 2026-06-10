@@ -1,13 +1,12 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"database/sql"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
-
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
 // Sessions returns all chatroom sessions
@@ -37,7 +36,7 @@ func (h *Handlers) Sessions(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	groups := []models.SessionGroup{}
+	groups := []api.SessionGroup{}
 	for rows.Next() {
 		var chatroomID, name string
 		var messageCount int
@@ -46,13 +45,13 @@ func (h *Handlers) Sessions(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(&chatroomID, &name, &messageCount, &lastActive, &uniqueSenders); err != nil {
 			continue
 		}
-		
+
 		var ts int64
 		if lastActive.Valid {
 			ts = lastActive.Int64
 		}
-		
-		groups = append(groups, models.SessionGroup{
+
+		groups = append(groups, api.SessionGroup{
 			ChatroomID: chatroomID,
 			Name:       name,
 			Summary:    fmt.Sprintf("%d 条消息 · %d 人参与", messageCount, uniqueSenders),
@@ -64,11 +63,11 @@ func (h *Handlers) Sessions(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	writeJSON(w, http.StatusOK, models.SessionsResponse{
+	writeJSON(w, http.StatusOK, api.SessionsResponse{
 		OK:         true,
 		Total:      len(groups),
 		Groups:     groups,
-		Categories: []models.CategoryInfo{},
+		Categories: []api.CategoryInfo{},
 	})
 }
 
@@ -154,9 +153,9 @@ func (h *Handlers) SessionDetail(w http.ResponseWriter, r *http.Request) {
 	}
 	defer msgRows.Close()
 
-	recent := []models.Message{}
+	recent := []api.Message{}
 	for msgRows.Next() {
-		var m models.Message
+		var m api.Message
 		if err := msgRows.Scan(&m.ChatroomID, &m.LocalID, &m.Sender, &m.Content, &m.Timestamp, &m.Type, &m.Date); err != nil {
 			continue
 		}
@@ -178,20 +177,20 @@ func (h *Handlers) SessionDetail(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dailyRows.Close()
 
-	dailyHistory := []models.DailyEntry{}
+	dailyHistory := []api.DailyEntry{}
 	for dailyRows.Next() {
-		var d models.DailyEntry
+		var d api.DailyEntry
 		if err := dailyRows.Scan(&d.Date, &d.MessageCount, &d.UniqueSenders); err != nil {
 			continue
 		}
 		dailyHistory = append(dailyHistory, d)
 	}
 
-	writeJSON(w, http.StatusOK, models.GroupDetail{
-		OK:           true,
-		ChatroomID:   chatroomID,
-		Date:         "",
-		Stats: &models.GroupStats{
+	writeJSON(w, http.StatusOK, api.GroupDetail{
+		OK:         true,
+		ChatroomID: chatroomID,
+		Date:       "",
+		Stats: &api.GroupStats{
 			MessageCount:  messageCount,
 			UniqueSenders: uniqueSenders,
 		},

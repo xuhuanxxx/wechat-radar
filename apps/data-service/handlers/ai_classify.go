@@ -1,10 +1,9 @@
 package handlers
 
 import (
+	"github.com/xuhuanxxx/wechat-radar/apps/data-service/api"
 	"net/http"
 	"strings"
-
-	"github.com/xuhuanxxx/wechat-radar/apps/data-service/models"
 )
 
 // AIClassify handles POST /api/ai-classify with keyword-based classification
@@ -14,35 +13,35 @@ func (h *Handlers) AIClassify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req models.AIClassifyRequest
+	var req api.AIClassifyRequest
 	if err := parseJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid JSON")
 		return
 	}
 
 	if len(req.ChatroomIDs) == 0 {
-		writeJSON(w, http.StatusOK, models.AIClassifyResponse{
+		writeJSON(w, http.StatusOK, api.AIClassifyResponse{
 			OK:         true,
-			Results:    []models.AIClassifyResult{},
+			Results:    []api.AIClassifyResult{},
 			Classified: 0,
 		})
 		return
 	}
 
-	results := []models.AIClassifyResult{}
+	results := []api.AIClassifyResult{}
 	for _, chatroomID := range req.ChatroomIDs {
 		result := h.classifyGroup(chatroomID, req.Date)
 		results = append(results, result)
 	}
 
-	writeJSON(w, http.StatusOK, models.AIClassifyResponse{
+	writeJSON(w, http.StatusOK, api.AIClassifyResponse{
 		OK:         true,
 		Results:    results,
 		Classified: len(results),
 	})
 }
 
-func (h *Handlers) classifyGroup(chatroomID, date string) models.AIClassifyResult {
+func (h *Handlers) classifyGroup(chatroomID, date string) api.AIClassifyResult {
 	// Get group name
 	var name string
 	h.db.QueryRow("SELECT name FROM groups WHERE chatroom_id = ?", chatroomID).Scan(&name)
@@ -60,7 +59,7 @@ func (h *Handlers) classifyGroup(chatroomID, date string) models.AIClassifyResul
 
 	rows, err := h.db.Query(query, args...)
 	if err != nil {
-		return models.AIClassifyResult{
+		return api.AIClassifyResult{
 			ChatroomID: chatroomID,
 			Name:       name,
 			Category:   "unknown",
@@ -124,7 +123,7 @@ func (h *Handlers) classifyGroup(chatroomID, date string) models.AIClassifyResul
 		reason = "Matched keywords for " + bestCategory
 	}
 
-	return models.AIClassifyResult{
+	return api.AIClassifyResult{
 		ChatroomID: chatroomID,
 		Name:       name,
 		Category:   bestCategory,

@@ -4,13 +4,11 @@ import { useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { TrendingUp } from 'lucide-react';
 import type { EChartsOption } from 'echarts';
+import type { Schemas } from '@/lib/api-client';
 
 const ReactECharts = dynamic(() => import('echarts-for-react'), { ssr: false });
 
-export interface TrendPoint {
-  date: string;
-  count: number;
-}
+export type TrendPoint = Schemas['TrendPoint'];
 
 export default function TrendChart({
   data,

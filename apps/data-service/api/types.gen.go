@@ -7,21 +7,6 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
-// Defines values for ErrorResponseOk.
-const (
-	False ErrorResponseOk = false
-)
-
-// Valid indicates whether the value is a known member of the ErrorResponseOk enum.
-func (e ErrorResponseOk) Valid() bool {
-	switch e {
-	case False:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for LarkChatFilterMode.
 const (
 	All       LarkChatFilterMode = "all"
@@ -45,29 +30,29 @@ func (e LarkChatFilterMode) Valid() bool {
 
 // AIClassifyRequest defines model for AIClassifyRequest.
 type AIClassifyRequest struct {
-	ChatroomIds []string `json:"chatroom_ids"`
-	Date        *string  `json:"date,omitempty"`
+	ChatroomIDs []string `json:"chatroom_ids"`
+	Date        string   `json:"date"`
 }
 
 // AIClassifyResponse defines model for AIClassifyResponse.
 type AIClassifyResponse struct {
 	Classified int                `json:"classified"`
-	Ok         bool               `json:"ok"`
+	OK         bool               `json:"ok"`
 	Results    []AIClassifyResult `json:"results"`
 }
 
 // AIClassifyResult defines model for AIClassifyResult.
 type AIClassifyResult struct {
 	Category   string  `json:"category"`
-	ChatroomId string  `json:"chatroom_id"`
-	Confidence float32 `json:"confidence"`
-	Name       *string `json:"name,omitempty"`
-	Reason     *string `json:"reason,omitempty"`
+	ChatroomID string  `json:"chatroom_id"`
+	Confidence float64 `json:"confidence"`
+	Name       string  `json:"name"`
+	Reason     string  `json:"reason"`
 }
 
 // ActiveGroup defines model for ActiveGroup.
 type ActiveGroup struct {
-	ChatroomId   string        `json:"chatroom_id"`
+	ChatroomID   string        `json:"chatroom_id"`
 	MessageCount int           `json:"message_count"`
 	Name         string        `json:"name"`
 	SenderCount  int           `json:"sender_count"`
@@ -91,7 +76,7 @@ type CardsData struct {
 type CategoryInfo struct {
 	Color string `json:"color"`
 	Emoji string `json:"emoji"`
-	Id    int    `json:"id"`
+	ID    int    `json:"id"`
 	Name  string `json:"name"`
 }
 
@@ -102,31 +87,31 @@ type CategoryStat struct {
 	Count        int    `json:"count"`
 	Emoji        string `json:"emoji"`
 	GroupCount   int    `json:"group_count"`
-	Id           int    `json:"id"`
+	ID           int    `json:"id"`
 	MessageCount int    `json:"message_count"`
 	Name         string `json:"name"`
 }
 
 // Config defines model for Config.
 type Config struct {
-	AutoSyncInterval int             `json:"autoSyncInterval"`
-	DefaultRange     string          `json:"defaultRange"`
-	DefaultSyncDays  int             `json:"defaultSyncDays"`
-	DemoMode         bool            `json:"demoMode"`
-	LarkChatFilter   *LarkChatFilter `json:"larkChatFilter,omitempty"`
-	LarkCliPath      string          `json:"larkCliPath"`
-	MyNicknames      []string        `json:"myNicknames"`
-	OpenApiKey       string          `json:"openApiKey"`
-	Port             int             `json:"port"`
-	PrivacyConfirmed bool            `json:"privacyConfirmed"`
-	SetupCompleted   bool            `json:"setupCompleted"`
-	Source           string          `json:"source"`
+	AutoSyncInterval int            `json:"autoSyncInterval"`
+	DefaultRange     string         `json:"defaultRange"`
+	DefaultSyncDays  int            `json:"defaultSyncDays"`
+	DemoMode         bool           `json:"demoMode"`
+	LarkChatFilter   LarkChatFilter `json:"larkChatFilter"`
+	LarkCliPath      string         `json:"larkCliPath"`
+	MyNicknames      []string       `json:"myNicknames"`
+	OpenApiKey       string         `json:"openApiKey"`
+	Port             int            `json:"port"`
+	PrivacyConfirmed bool           `json:"privacyConfirmed"`
+	SetupCompleted   bool           `json:"setupCompleted"`
+	Source           string         `json:"source"`
 }
 
 // ConfigResponse defines model for ConfigResponse.
 type ConfigResponse struct {
 	Config Config `json:"config"`
-	Ok     bool   `json:"ok"`
+	OK     bool   `json:"ok"`
 }
 
 // DailyEntry defines model for DailyEntry.
@@ -139,58 +124,55 @@ type DailyEntry struct {
 
 // DoctorCheck defines model for DoctorCheck.
 type DoctorCheck struct {
-	Message *string `json:"message,omitempty"`
-	Name    string  `json:"name"`
-	Status  string  `json:"status"`
+	Message string `json:"message"`
+	Name    string `json:"name"`
+	Status  string `json:"status"`
 }
 
 // DoctorResponse defines model for DoctorResponse.
 type DoctorResponse struct {
 	Checks []DoctorCheck `json:"checks"`
-	Ok     bool          `json:"ok"`
+	OK     bool          `json:"ok"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
 type ErrorResponse struct {
-	Error string          `json:"error"`
-	Ok    ErrorResponseOk `json:"ok"`
+	Error string `json:"error"`
+	OK    bool   `json:"ok"`
 }
-
-// ErrorResponseOk defines model for ErrorResponse.Ok.
-type ErrorResponseOk bool
 
 // Favorite defines model for Favorite.
 type Favorite struct {
-	ChatroomId string  `json:"chatroom_id"`
+	ChatroomID string  `json:"chatroom_id"`
 	Content    string  `json:"content"`
 	CreatedAt  *string `json:"created_at,omitempty"`
 	Date       string  `json:"date"`
-	Id         int     `json:"id"`
-	MessageId  string  `json:"message_id"`
+	ID         int     `json:"id"`
+	MessageID  string  `json:"message_id"`
 	Sender     string  `json:"sender"`
 }
 
 // FavoriteToggleRequest defines model for FavoriteToggleRequest.
 type FavoriteToggleRequest struct {
-	ChatroomId string `json:"chatroom_id"`
-	MessageId  string `json:"message_id"`
+	ChatroomID string `json:"chatroom_id"`
+	MessageID  string `json:"message_id"`
 }
 
 // FavoriteToggleResponse defines model for FavoriteToggleResponse.
 type FavoriteToggleResponse struct {
 	Favorited bool `json:"favorited"`
-	Ok        bool `json:"ok"`
+	OK        bool `json:"ok"`
 }
 
 // FavoritesResponse defines model for FavoritesResponse.
 type FavoritesResponse struct {
 	Favorites []Favorite `json:"favorites"`
-	Ok        bool       `json:"ok"`
+	OK        bool       `json:"ok"`
 }
 
 // Group defines model for Group.
 type Group struct {
-	ChatroomId  string  `json:"chatroom_id"`
+	ChatroomID  string  `json:"chatroom_id"`
 	CreatedAt   *string `json:"created_at,omitempty"`
 	MemberCount *int    `json:"member_count,omitempty"`
 	Name        string  `json:"name"`
@@ -198,26 +180,26 @@ type Group struct {
 
 // GroupDetail Per-session detail used by /api/sessions/{chatroom_id}
 type GroupDetail struct {
-	ChatroomId   string       `json:"chatroom_id"`
+	ChatroomID   string       `json:"chatroom_id"`
 	DailyHistory []DailyEntry `json:"daily_history"`
 	Date         string       `json:"date"`
-	Ok           bool         `json:"ok"`
+	OK           bool         `json:"ok"`
 	Recent       []Message    `json:"recent"`
-	Stats        *GroupStats  `json:"stats,omitempty"`
-	SyncState    *SyncState   `json:"sync_state,omitempty"`
-	SyncedDates  *[]string    `json:"synced_dates,omitempty"`
+	Stats        *GroupStats  `json:"stats"`
+	SyncState    *SyncState   `json:"sync_state"`
+	SyncedDates  []string     `json:"synced_dates"`
 }
 
 // GroupDetailResponse Detail used by /api/groups/{chatroom_id} (distinct from GroupDetail)
 type GroupDetailResponse struct {
-	ChatroomId   string        `json:"chatroom_id"`
-	DailyHistory *[]DailyEntry `json:"daily_history,omitempty"`
-	MemberCount  *int          `json:"member_count,omitempty"`
-	Name         string        `json:"name"`
-	Ok           bool          `json:"ok"`
-	Recent       *[]Message    `json:"recent,omitempty"`
-	Stats        *GroupStats   `json:"stats,omitempty"`
-	Tags         []string      `json:"tags"`
+	ChatroomID   string       `json:"chatroom_id"`
+	DailyHistory []DailyEntry `json:"daily_history"`
+	MemberCount  int          `json:"member_count"`
+	Name         string       `json:"name"`
+	OK           bool         `json:"ok"`
+	Recent       []Message    `json:"recent"`
+	Stats        GroupStats   `json:"stats"`
+	Tags         []string     `json:"tags"`
 }
 
 // GroupStats defines model for GroupStats.
@@ -233,25 +215,25 @@ type GroupStats struct {
 
 // GroupTagRequest defines model for GroupTagRequest.
 type GroupTagRequest struct {
-	ChatroomId string `json:"chatroom_id"`
+	ChatroomID string `json:"chatroom_id"`
 	Tag        string `json:"tag"`
 }
 
 // GroupTagResponse defines model for GroupTagResponse.
 type GroupTagResponse struct {
-	Ok  bool   `json:"ok"`
+	OK  bool   `json:"ok"`
 	Tag string `json:"tag"`
 }
 
 // GroupTagsResponse defines model for GroupTagsResponse.
 type GroupTagsResponse struct {
-	Ok   bool     `json:"ok"`
+	OK   bool     `json:"ok"`
 	Tags []string `json:"tags"`
 }
 
 // GroupWithTags defines model for GroupWithTags.
 type GroupWithTags struct {
-	ChatroomId  string   `json:"chatroom_id"`
+	ChatroomID  string   `json:"chatroom_id"`
 	CreatedAt   *string  `json:"created_at,omitempty"`
 	MemberCount *int     `json:"member_count,omitempty"`
 	Name        string   `json:"name"`
@@ -261,12 +243,12 @@ type GroupWithTags struct {
 // GroupsResponse defines model for GroupsResponse.
 type GroupsResponse struct {
 	Groups []GroupWithTags `json:"groups"`
-	Ok     bool            `json:"ok"`
+	OK     bool            `json:"ok"`
 }
 
 // HealthResponse defines model for HealthResponse.
 type HealthResponse struct {
-	Ok      bool   `json:"ok"`
+	OK      bool   `json:"ok"`
 	Service string `json:"service"`
 	Version string `json:"version"`
 }
@@ -279,17 +261,17 @@ type HourCount struct {
 
 // IntelligenceBrief defines model for IntelligenceBrief.
 type IntelligenceBrief struct {
-	Highlights    *[]string `json:"highlights,omitempty"`
-	Ok            bool      `json:"ok"`
-	Opportunities *[]string `json:"opportunities,omitempty"`
-	Risks         *[]string `json:"risks,omitempty"`
-	Summary       string    `json:"summary"`
+	Highlights    []string `json:"highlights"`
+	OK            bool     `json:"ok"`
+	Opportunities []string `json:"opportunities"`
+	Risks         []string `json:"risks"`
+	Summary       string   `json:"summary"`
 }
 
 // LarkChatFilter defines model for LarkChatFilter.
 type LarkChatFilter struct {
-	Allowlist *[]string          `json:"allowlist,omitempty"`
-	Blocklist *[]string          `json:"blocklist,omitempty"`
+	Allowlist []string           `json:"allowlist"`
+	Blocklist []string           `json:"blocklist"`
 	Mode      LarkChatFilterMode `json:"mode"`
 }
 
@@ -299,7 +281,7 @@ type LarkChatFilterMode string
 // LarkChatItem defines model for LarkChatItem.
 type LarkChatItem struct {
 	Filtered    bool   `json:"filtered"`
-	Id          string `json:"id"`
+	ID          string `json:"id"`
 	MemberCount int    `json:"member_count"`
 	Name        string `json:"name"`
 }
@@ -308,130 +290,68 @@ type LarkChatItem struct {
 type LarkChatsResponse struct {
 	Chats  []LarkChatItem `json:"chats"`
 	Filter LarkChatFilter `json:"filter"`
-	Ok     bool           `json:"ok"`
-}
-
-// LarkError defines model for LarkError.
-type LarkError struct {
-	Message string `json:"message"`
-	Type    string `json:"type"`
-}
-
-// LarkMention defines model for LarkMention.
-type LarkMention struct {
-	Id        string  `json:"id"`
-	Key       string  `json:"key"`
-	Name      string  `json:"name"`
-	TenantKey *string `json:"tenant_key,omitempty"`
-}
-
-// LarkMessage defines model for LarkMessage.
-type LarkMessage struct {
-	Body       *LarkMessageBody `json:"body,omitempty"`
-	ChatId     *string          `json:"chat_id,omitempty"`
-	Content    *string          `json:"content,omitempty"`
-	CreateTime *string          `json:"createTime,omitempty"`
-	CreateTime *string          `json:"create_time,omitempty"`
-	Mentions   *[]LarkMention   `json:"mentions,omitempty"`
-	MessageId  *string          `json:"messageId,omitempty"`
-	MessageId  string           `json:"message_id"`
-	MsgType    *string          `json:"msgType,omitempty"`
-	MsgType    *string          `json:"msg_type,omitempty"`
-	ParentId   *string          `json:"parent_id,omitempty"`
-	Sender     *LarkSender      `json:"sender,omitempty"`
-	ThreadId   *string          `json:"thread_id,omitempty"`
-	UpdateTime *string          `json:"update_time,omitempty"`
-}
-
-// LarkMessageBody defines model for LarkMessageBody.
-type LarkMessageBody struct {
-	Content *string `json:"content,omitempty"`
-}
-
-// LarkMessagesData defines model for LarkMessagesData.
-type LarkMessagesData struct {
-	HasMore   *bool          `json:"has_more,omitempty"`
-	Items     *[]LarkMessage `json:"items,omitempty"`
-	Messages  *[]LarkMessage `json:"messages,omitempty"`
-	PageToken *string        `json:"page_token,omitempty"`
-}
-
-// LarkMessagesResponse defines model for LarkMessagesResponse.
-type LarkMessagesResponse struct {
-	Data     *LarkMessagesData `json:"data,omitempty"`
-	Error    *LarkError        `json:"error,omitempty"`
-	Messages *[]LarkMessage    `json:"messages,omitempty"`
-	Ok       bool              `json:"ok"`
-}
-
-// LarkSender defines model for LarkSender.
-type LarkSender struct {
-	Id         string  `json:"id"`
-	IdType     *string `json:"id_type,omitempty"`
-	Name       *string `json:"name,omitempty"`
-	SenderId   *string `json:"sender_id,omitempty"`
-	SenderName *string `json:"sender_name,omitempty"`
+	OK     bool           `json:"ok"`
 }
 
 // Link defines model for Link.
 type Link struct {
-	ChatroomId string  `json:"chatroom_id"`
+	ChatroomID string  `json:"chatroom_id"`
 	CreatedAt  *string `json:"created_at,omitempty"`
 	Date       string  `json:"date"`
-	Id         int     `json:"id"`
-	MessageId  string  `json:"message_id"`
+	ID         int     `json:"id"`
+	MessageID  string  `json:"message_id"`
 	Title      *string `json:"title,omitempty"`
-	Url        string  `json:"url"`
+	URL        string  `json:"url"`
 }
 
 // LinkAnalyzeRequest defines model for LinkAnalyzeRequest.
 type LinkAnalyzeRequest struct {
-	ChatroomId string `json:"chatroom_id"`
+	ChatroomID string `json:"chatroom_id"`
 	Date       string `json:"date"`
 }
 
 // LinkAnalyzeResponse defines model for LinkAnalyzeResponse.
 type LinkAnalyzeResponse struct {
 	Links []Link `json:"links"`
-	Ok    bool   `json:"ok"`
+	OK    bool   `json:"ok"`
 }
 
 // LinksResponse defines model for LinksResponse.
 type LinksResponse struct {
 	Links []Link `json:"links"`
-	Ok    bool   `json:"ok"`
+	OK    bool   `json:"ok"`
 }
 
 // Mention defines model for Mention.
 type Mention struct {
-	ChatroomId string  `json:"chatroom_id"`
+	ChatroomID string  `json:"chatroom_id"`
 	CreatedAt  *string `json:"created_at,omitempty"`
 	Date       string  `json:"date"`
-	Id         int     `json:"id"`
+	ID         int     `json:"id"`
 	Mentioned  string  `json:"mentioned"`
 	Mentioner  string  `json:"mentioner"`
-	MessageId  string  `json:"message_id"`
+	MessageID  string  `json:"message_id"`
 }
 
 // MentionStats defines model for MentionStats.
 type MentionStats struct {
-	Mentioned   map[string]int       `json:"mentioned"`
-	MentionedBy *map[string][]string `json:"mentioned_by,omitempty"`
-	Ok          bool                 `json:"ok"`
+	Mentioned   map[string]int      `json:"mentioned"`
+	MentionedBy map[string][]string `json:"mentioned_by"`
+	OK          bool                `json:"ok"`
 }
 
 // MentionsResponse defines model for MentionsResponse.
 type MentionsResponse struct {
 	Mentions []Mention `json:"mentions"`
-	Ok       bool      `json:"ok"`
+	OK       bool      `json:"ok"`
 }
 
 // Message defines model for Message.
 type Message struct {
-	ChatroomId string  `json:"chatroom_id"`
+	ChatroomID string  `json:"chatroom_id"`
 	Content    string  `json:"content"`
 	Date       string  `json:"date"`
-	LocalId    string  `json:"local_id"`
+	LocalID    string  `json:"local_id"`
 	Raw        *string `json:"raw,omitempty"`
 	Sender     string  `json:"sender"`
 	SenderName *string `json:"sender_name,omitempty"`
@@ -443,33 +363,33 @@ type Message struct {
 
 // MessageLink defines model for MessageLink.
 type MessageLink struct {
-	ChatroomId string  `json:"chatroom_id"`
+	ChatroomID string  `json:"chatroom_id"`
 	CreatedAt  *string `json:"created_at,omitempty"`
 	Date       string  `json:"date"`
-	Id         int     `json:"id"`
-	MessageId  string  `json:"message_id"`
+	ID         int     `json:"id"`
+	MessageID  string  `json:"message_id"`
 	Resolved   bool    `json:"resolved"`
 	Summary    *string `json:"summary,omitempty"`
 	Title      *string `json:"title,omitempty"`
-	Url        string  `json:"url"`
+	URL        string  `json:"url"`
 }
 
 // MessageLinksBackfillResponse defines model for MessageLinksBackfillResponse.
 type MessageLinksBackfillResponse struct {
 	Inserted int  `json:"inserted"`
-	Ok       bool `json:"ok"`
+	OK       bool `json:"ok"`
 }
 
 // MessageLinksRawResponse defines model for MessageLinksRawResponse.
 type MessageLinksRawResponse struct {
-	Date  *string       `json:"date,omitempty"`
+	Date  string        `json:"date"`
 	Links []MessageLink `json:"links"`
-	Ok    bool          `json:"ok"`
+	OK    bool          `json:"ok"`
 }
 
 // MessageLinksResolveResponse defines model for MessageLinksResolveResponse.
 type MessageLinksResolveResponse struct {
-	Ok       bool `json:"ok"`
+	OK       bool `json:"ok"`
 	Resolved int  `json:"resolved"`
 }
 
@@ -477,48 +397,48 @@ type MessageLinksResolveResponse struct {
 type NewMessagesResponse struct {
 	Count    int       `json:"count"`
 	Messages []Message `json:"messages"`
-	Ok       bool      `json:"ok"`
+	OK       bool      `json:"ok"`
 }
 
 // OKResponse defines model for OKResponse.
 type OKResponse struct {
-	Ok bool `json:"ok"`
+	OK bool `json:"ok"`
 }
 
 // ReportRequest defines model for ReportRequest.
 type ReportRequest struct {
-	ChatroomId string  `json:"chatroom_id"`
-	Date       *string `json:"date,omitempty"`
-	Range      *string `json:"range,omitempty"`
+	ChatroomID string `json:"chatroom_id"`
+	Date       string `json:"date"`
+	Range      string `json:"range"`
 }
 
 // ReportResponse defines model for ReportResponse.
 type ReportResponse struct {
-	Error  *string `json:"error,omitempty"`
-	Ok     bool    `json:"ok"`
-	Report string  `json:"report"`
+	Error  string `json:"error"`
+	OK     bool   `json:"ok"`
+	Report string `json:"report"`
 }
 
 // RescanResponse defines model for RescanResponse.
 type RescanResponse struct {
-	Message *string `json:"message,omitempty"`
-	Ok      bool    `json:"ok"`
+	Message string `json:"message"`
+	OK      bool   `json:"ok"`
 }
 
 // SearchResponse defines model for SearchResponse.
 type SearchResponse struct {
 	Count   int            `json:"count"`
-	Ok      bool           `json:"ok"`
+	OK      bool           `json:"ok"`
 	Results []SearchResult `json:"results"`
 }
 
 // SearchResult defines model for SearchResult.
 type SearchResult struct {
 	ChatName   *string `json:"chat_name,omitempty"`
-	ChatroomId string  `json:"chatroom_id"`
+	ChatroomID string  `json:"chatroom_id"`
 	Content    string  `json:"content"`
 	Date       string  `json:"date"`
-	MessageId  string  `json:"message_id"`
+	MessageID  string  `json:"message_id"`
 	Sender     string  `json:"sender"`
 	Timestamp  int64   `json:"timestamp"`
 }
@@ -531,8 +451,8 @@ type SenderCount struct {
 
 // SessionGroup defines model for SessionGroup.
 type SessionGroup struct {
-	ChatroomId string `json:"chatroom_id"`
-	GroupIds   []int  `json:"group_ids"`
+	ChatroomID string `json:"chatroom_id"`
+	GroupIDs   []int  `json:"group_ids"`
 	IsFavorite bool   `json:"is_favorite"`
 	Name       string `json:"name"`
 	Summary    string `json:"summary"`
@@ -545,38 +465,38 @@ type SessionGroup struct {
 type SessionsResponse struct {
 	Categories []CategoryInfo `json:"categories"`
 	Groups     []SessionGroup `json:"groups"`
-	Ok         bool           `json:"ok"`
+	OK         bool           `json:"ok"`
 	Total      int            `json:"total"`
 }
 
 // SetupChecks defines model for SetupChecks.
 type SetupChecks struct {
-	LarkAuthenticated bool    `json:"larkAuthenticated"`
-	LarkError         *string `json:"larkError,omitempty"`
-	LarkInstalled     bool    `json:"larkInstalled"`
+	LarkAuthenticated bool   `json:"larkAuthenticated"`
+	LarkError         string `json:"larkError"`
+	LarkInstalled     bool   `json:"larkInstalled"`
 }
 
 // SetupRequest defines model for SetupRequest.
 type SetupRequest struct {
-	AutoSyncInterval *int            `json:"autoSyncInterval,omitempty"`
-	DefaultRange     string          `json:"defaultRange"`
-	DefaultSyncDays  *int            `json:"defaultSyncDays,omitempty"`
-	DemoMode         bool            `json:"demoMode"`
-	LarkChatFilter   *LarkChatFilter `json:"larkChatFilter,omitempty"`
-	LarkCliPath      *string         `json:"larkCliPath,omitempty"`
-	MyNicknames      []string        `json:"myNicknames"`
-	OpenApiKey       *string         `json:"openApiKey,omitempty"`
-	Port             *int            `json:"port,omitempty"`
-	PrivacyConfirmed bool            `json:"privacyConfirmed"`
-	Source           string          `json:"source"`
+	AutoSyncInterval int            `json:"autoSyncInterval"`
+	DefaultRange     string         `json:"defaultRange"`
+	DefaultSyncDays  int            `json:"defaultSyncDays"`
+	DemoMode         bool           `json:"demoMode"`
+	LarkChatFilter   LarkChatFilter `json:"larkChatFilter"`
+	LarkCliPath      string         `json:"larkCliPath"`
+	MyNicknames      []string       `json:"myNicknames"`
+	OpenApiKey       string         `json:"openApiKey"`
+	Port             int            `json:"port"`
+	PrivacyConfirmed bool           `json:"privacyConfirmed"`
+	Source           string         `json:"source"`
 }
 
 // SetupResponse defines model for SetupResponse.
 type SetupResponse struct {
-	Configured *bool   `json:"configured,omitempty"`
-	Error      *string `json:"error,omitempty"`
-	Message    *string `json:"message,omitempty"`
-	Ok         bool    `json:"ok"`
+	Configured bool   `json:"configured"`
+	Error      string `json:"error"`
+	Message    string `json:"message"`
+	OK         bool   `json:"ok"`
 }
 
 // SetupStatus defines model for SetupStatus.
@@ -585,8 +505,8 @@ type SetupStatus struct {
 	Config     Config      `json:"config"`
 	Configured bool        `json:"configured"`
 	DataDir    string      `json:"dataDir"`
-	Error      *string     `json:"error,omitempty"`
-	Ok         bool        `json:"ok"`
+	Error      string      `json:"error"`
+	OK         bool        `json:"ok"`
 }
 
 // SidebarCounts defines model for SidebarCounts.
@@ -603,12 +523,25 @@ type StatsResponse struct {
 	Categories   []CategoryStat `json:"categories"`
 
 	// Intelligence Free-form intelligence payload (shape varies)
-	Intelligence  *map[string]interface{} `json:"intelligence,omitempty"`
-	Ok            bool                    `json:"ok"`
+	Intelligence  *map[string]interface{} `json:"intelligence"`
+	OK            bool                    `json:"ok"`
 	Range         string                  `json:"range"`
 	SidebarCounts SidebarCounts           `json:"sidebar_counts"`
 	Trend         TrendData               `json:"trend"`
 	Window        TimeWindow              `json:"window"`
+}
+
+// SyncProgressEvent Payload of an SSE event from /api/lark/sync (stream=1).
+type SyncProgressEvent struct {
+	ChatID string                `json:"chatId"`
+	Count  int                   `json:"count"`
+	Error  string                `json:"error"`
+	OK     bool                  `json:"ok"`
+	Phase  string                `json:"phase"`
+	Synced map[string]SyncResult `json:"synced"`
+
+	// Type One of: start, progress, error, finished
+	Type string `json:"type"`
 }
 
 // SyncProgressSnapshot Best-effort representation of the sync engine status snapshot exposed by /api/sync/progress. Fields depend on the engine.
@@ -617,15 +550,15 @@ type SyncProgressSnapshot map[string]interface{}
 // SyncRequest defines model for SyncRequest.
 type SyncRequest struct {
 	// ChatId Sync a single chat. Omit to sync all.
-	ChatId   *string `json:"chat_id,omitempty"`
-	DaysBack *int    `json:"days_back,omitempty"`
-	Stream   *bool   `json:"stream,omitempty"`
+	ChatID   string `json:"chat_id"`
+	DaysBack int    `json:"days_back"`
+	Stream   bool   `json:"stream"`
 }
 
 // SyncResponse defines model for SyncResponse.
 type SyncResponse struct {
-	Error  *string               `json:"error,omitempty"`
-	Ok     bool                  `json:"ok"`
+	Error  string                `json:"error"`
+	OK     bool                  `json:"ok"`
 	Synced map[string]SyncResult `json:"synced"`
 }
 
@@ -638,7 +571,7 @@ type SyncResult struct {
 
 // SyncState defines model for SyncState.
 type SyncState struct {
-	ChatroomId    string `json:"chatroom_id"`
+	ChatroomID    string `json:"chatroom_id"`
 	LastSyncedAt  int64  `json:"last_synced_at"`
 	Source        string `json:"source"`
 	Status        string `json:"status"`
@@ -657,24 +590,24 @@ type TimeWindow struct {
 // Topic defines model for Topic.
 type Topic struct {
 	Category   string  `json:"category"`
-	ChatroomId string  `json:"chatroom_id"`
-	Confidence float32 `json:"confidence"`
+	ChatroomID string  `json:"chatroom_id"`
+	Confidence float64 `json:"confidence"`
 	CreatedAt  *string `json:"created_at,omitempty"`
 	Date       string  `json:"date"`
-	Id         int     `json:"id"`
-	MessageIds *string `json:"message_ids,omitempty"`
+	ID         int     `json:"id"`
+	MessageIDs *string `json:"message_ids,omitempty"`
 	Topic      string  `json:"topic"`
 }
 
 // TopicAnalyzeRequest defines model for TopicAnalyzeRequest.
 type TopicAnalyzeRequest struct {
-	ChatroomId string `json:"chatroom_id"`
+	ChatroomID string `json:"chatroom_id"`
 	Date       string `json:"date"`
 }
 
 // TopicAnalyzeResponse defines model for TopicAnalyzeResponse.
 type TopicAnalyzeResponse struct {
-	Ok     bool    `json:"ok"`
+	OK     bool    `json:"ok"`
 	Topics []Topic `json:"topics"`
 }
 
@@ -687,7 +620,7 @@ type TopicCategory struct {
 
 // TopicDetailResponse defines model for TopicDetailResponse.
 type TopicDetailResponse struct {
-	Ok    bool  `json:"ok"`
+	OK    bool  `json:"ok"`
 	Topic Topic `json:"topic"`
 }
 
@@ -696,21 +629,21 @@ type TopicLinksResponse struct {
 	Count int     `json:"count"`
 	Date  *string `json:"date,omitempty"`
 	Links []Link  `json:"links"`
-	Ok    bool    `json:"ok"`
+	OK    bool    `json:"ok"`
 }
 
 // TopicsResponse defines model for TopicsResponse.
 type TopicsResponse struct {
 	Categories *[]TopicCategory `json:"categories,omitempty"`
-	ChatroomId *string          `json:"chatroom_id,omitempty"`
+	ChatroomID *string          `json:"chatroom_id,omitempty"`
 	Date       *string          `json:"date,omitempty"`
-	Ok         bool             `json:"ok"`
+	OK         bool             `json:"ok"`
 	Topics     []Topic          `json:"topics"`
 }
 
 // TrendData defines model for TrendData.
 type TrendData struct {
-	Avg    float32      `json:"avg"`
+	Avg    float64      `json:"avg"`
 	Data   []TrendPoint `json:"data"`
 	Labels []string     `json:"labels"`
 	Peak   TrendPoint   `json:"peak"`
@@ -732,26 +665,26 @@ type TypeCount struct {
 
 // WXImageResponse defines model for WXImageResponse.
 type WXImageResponse struct {
-	Data    *string `json:"data,omitempty"`
-	Message *string `json:"message,omitempty"`
-	Ok      bool    `json:"ok"`
-	Url     *string `json:"url,omitempty"`
+	Data    string `json:"data"`
+	Message string `json:"message"`
+	OK      bool   `json:"ok"`
+	URL     string `json:"url"`
 }
 
 // GetFavoritesParams defines parameters for GetFavorites.
 type GetFavoritesParams struct {
-	ChatroomId *string `form:"chatroom_id,omitempty" json:"chatroom_id,omitempty"`
+	ChatroomID *string `form:"chatroom_id,omitempty" json:"chatroom_id,omitempty"`
 }
 
 // DeleteGroupTagParams defines parameters for DeleteGroupTag.
 type DeleteGroupTagParams struct {
-	ChatroomId string `form:"chatroom_id" json:"chatroom_id"`
+	ChatroomID string `form:"chatroom_id" json:"chatroom_id"`
 	Tag        string `form:"tag" json:"tag"`
 }
 
 // GetGroupTagsParams defines parameters for GetGroupTags.
 type GetGroupTagsParams struct {
-	ChatroomId string `form:"chatroom_id" json:"chatroom_id"`
+	ChatroomID string `form:"chatroom_id" json:"chatroom_id"`
 }
 
 // GetGroupDetailParams defines parameters for GetGroupDetail.
@@ -767,7 +700,7 @@ type GetIntelligenceParams struct {
 
 // GetLarkMessagesParams defines parameters for GetLarkMessages.
 type GetLarkMessagesParams struct {
-	ChatId string `form:"chat_id" json:"chat_id"`
+	ChatID string `form:"chat_id" json:"chat_id"`
 }
 
 // PostLarkSyncParams defines parameters for PostLarkSync.
@@ -778,19 +711,19 @@ type PostLarkSyncParams struct {
 
 // GetLinksParams defines parameters for GetLinks.
 type GetLinksParams struct {
-	ChatroomId *string             `form:"chatroom_id,omitempty" json:"chatroom_id,omitempty"`
+	ChatroomID *string             `form:"chatroom_id,omitempty" json:"chatroom_id,omitempty"`
 	Date       *openapi_types.Date `form:"date,omitempty" json:"date,omitempty"`
 }
 
 // GetMentionsParams defines parameters for GetMentions.
 type GetMentionsParams struct {
-	ChatroomId *string `form:"chatroom_id,omitempty" json:"chatroom_id,omitempty"`
+	ChatroomID *string `form:"chatroom_id,omitempty" json:"chatroom_id,omitempty"`
 	Mentioned  *string `form:"mentioned,omitempty" json:"mentioned,omitempty"`
 }
 
 // GetMentionStatsParams defines parameters for GetMentionStats.
 type GetMentionStatsParams struct {
-	ChatroomId *string `form:"chatroom_id,omitempty" json:"chatroom_id,omitempty"`
+	ChatroomID *string `form:"chatroom_id,omitempty" json:"chatroom_id,omitempty"`
 }
 
 // GetMessageLinksRawParams defines parameters for GetMessageLinksRaw.
@@ -806,7 +739,7 @@ type GetNewMessagesParams struct {
 // GetSearchParams defines parameters for GetSearch.
 type GetSearchParams struct {
 	Q          string  `form:"q" json:"q"`
-	ChatroomId *string `form:"chatroom_id,omitempty" json:"chatroom_id,omitempty"`
+	ChatroomID *string `form:"chatroom_id,omitempty" json:"chatroom_id,omitempty"`
 	Limit      *int    `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
@@ -827,7 +760,7 @@ type GetStatsParams struct {
 
 // GetTopicsParams defines parameters for GetTopics.
 type GetTopicsParams struct {
-	ChatroomId *string             `form:"chatroom_id,omitempty" json:"chatroom_id,omitempty"`
+	ChatroomID *string             `form:"chatroom_id,omitempty" json:"chatroom_id,omitempty"`
 	Date       *openapi_types.Date `form:"date,omitempty" json:"date,omitempty"`
 }
 
@@ -838,7 +771,7 @@ type GetTopicLinksParams struct {
 
 // GetWXImageParams defines parameters for GetWXImage.
 type GetWXImageParams struct {
-	Url string `form:"url" json:"url"`
+	URL string `form:"url" json:"url"`
 }
 
 // PostAIClassifyJSONRequestBody defines body for PostAIClassify for application/json ContentType.

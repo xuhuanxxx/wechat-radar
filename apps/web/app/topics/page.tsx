@@ -100,7 +100,7 @@ export default function TopicsPage() {
     setBusy(true);
     setInfo('启动 Codex CLI 话题聚合…');
     try {
-      const r = await apiFetch('/api/topics/build', {
+      const r = await apiFetch('/api/topics/analyze', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ date }),

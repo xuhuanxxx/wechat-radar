@@ -1,13 +1,8 @@
 import Link from 'next/link';
 import { FileText, Flame } from 'lucide-react';
+import type { Schemas } from '@/lib/api-client';
 
-export interface ActiveGroup {
-  chatroom_id: string;
-  name: string;
-  summary: string;
-  total: number;
-  top_senders: Array<{ sender: string; count: number }>;
-}
+export type ActiveGroup = Schemas['ActiveGroup'];
 
 export default function ActiveGroupsList({ groups, date }: { groups: ActiveGroup[]; date?: string }) {
   const max = groups[0]?.total ?? 1;
